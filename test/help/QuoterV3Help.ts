@@ -1,13 +1,10 @@
 import * as viem from 'viem'
 import { FeeAmount } from '@uniswap/v3-sdk'
-import { BaseCurrency, Token, Ether, QUOTER_ADDRESSES } from '@uniswap/sdk-core'
+import { Token } from '@uniswap/sdk-core'
 
 const eachGaslimit = 300000n
 
-let ChainId: number
-let WETH_ADDRESS: `0x${string}`
 let QuoterV3Addr: `0x${string}`
-let NATIVE_ETH: Ether
 let WETH_TOKEN: Token, USDC_TOKEN: Token, USDT_TOKEN: Token, DAI_TOKEN: Token
 
 let quoterV3abi: any
@@ -28,7 +25,7 @@ export class Pool {
 
 export async function setup(
     params: {
-        ChainId: number,
+        WETH_TOKEN: Token,
         USDC_TOKEN: Token,
         USDT_TOKEN: Token,
         DAI_TOKEN: Token,
@@ -37,24 +34,17 @@ export async function setup(
         publicClient: any
     }
 ) {
-    ChainId = params.ChainId
-    NATIVE_ETH = Ether.onChain(ChainId)
-    WETH_TOKEN = NATIVE_ETH.wrapped
-
-    WETH_ADDRESS = WETH_TOKEN.address as `0x${string}`
-
-    QuoterV3Addr = params.QuoterV3Addr
-
+    WETH_TOKEN = params.WETH_TOKEN
     USDC_TOKEN = params.USDC_TOKEN
     USDT_TOKEN = params.USDT_TOKEN
     DAI_TOKEN = params.DAI_TOKEN
-
+    QuoterV3Addr = params.QuoterV3Addr
     quoterV3abi = params.quoterV3abi
     publicClient = params.publicClient
 }
 
 
-export function getRoutersInfo_USD(tokenIn: BaseCurrency, tokenOut: BaseCurrency) {
+export function getRoutersInfo_USD(tokenIn: Token, tokenOut: Token) {
     let routerPoolsArr: Pool[][] = []
     let feeArr = [FeeAmount.HIGH, FeeAmount.MEDIUM, FeeAmount.LOW, FeeAmount.LOWEST]
 
@@ -99,7 +89,7 @@ export function getRoutersInfo_USD(tokenIn: BaseCurrency, tokenOut: BaseCurrency
 }
 
 
-export function getRoutersInfo_WETH(tokenIn: BaseCurrency, tokenOut: BaseCurrency) {
+export function getRoutersInfo_WETH(tokenIn: Token, tokenOut: Token) {
     let routerPoolsArr: Pool[][] = []
 
     let feeArr = [FeeAmount.HIGH, FeeAmount.MEDIUM, FeeAmount.LOW, FeeAmount.LOWEST]
@@ -117,7 +107,7 @@ export function getRoutersInfo_WETH(tokenIn: BaseCurrency, tokenOut: BaseCurrenc
 }
 
 
-export function getRoutersInfo(tokenIn: BaseCurrency, tokenOut: BaseCurrency) {
+export function getRoutersInfo(tokenIn: Token, tokenOut: Token) {
     let routerPoolsArr = []
 
     let feeArr = [FeeAmount.HIGH, FeeAmount.MEDIUM, FeeAmount.LOW, FeeAmount.LOWEST]
@@ -139,10 +129,10 @@ function getCallDatasForAmountOut(amountIn: bigint, routerPoolsArr: Pool[][]) {
         for (let i = 0; i < routerPools.length; i++) {
             let pool = routerPools[i]
             if (i == 0) {
-                path.push(pool.tokenIn.isNative ? WETH_ADDRESS : pool.tokenIn.address as `0x${string}`)
+                path.push(pool.tokenIn.address as `0x${string}`)
             }
             path.push(viem.numberToHex(pool.fee, { size: 3 }))
-            path.push(pool.tokenOut.isNative ? WETH_ADDRESS : pool.tokenOut.address as `0x${string}`)
+            path.push(pool.tokenOut.address as `0x${string}`)
         }
 
         let callData: `0x${string}` = viem.encodeFunctionData({
@@ -166,10 +156,10 @@ function getCallDatasForAmountIn(routerPoolsArr: Pool[][], amountOut: bigint) {
         for (let i = routerPools.length - 1; i >= 0; i--) {
             let pool = routerPools[i]
             if (i == routerPools.length - 1) {
-                path.push(pool.tokenOut.isNative ? WETH_ADDRESS : pool.tokenOut.address as `0x${string}`)
+                path.push(pool.tokenOut.address as `0x${string}`)
             }
             path.push(viem.numberToHex(pool.fee, { size: 3 }))
-            path.push(pool.tokenIn.isNative ? WETH_ADDRESS : pool.tokenIn.address as `0x${string}`)
+            path.push(pool.tokenIn.address as `0x${string}`)
         }
 
         let callData: `0x${string}` = viem.encodeFunctionData({

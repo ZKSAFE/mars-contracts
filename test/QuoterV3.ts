@@ -6,6 +6,7 @@ import * as QuoterV3Help from './help/QuoterV3Help'
 import { abi as quoterV3abi  } from '../artifacts/contracts/help/QuoterV3.sol/QuoterV3.json'
 
 const NATIVE_ETH = Ether.onChain(ChainId.OPTIMISM)
+const WETH_TOKEN = NATIVE_ETH.wrapped
 const USDC_TOKEN = new Token(ChainId.OPTIMISM, '0x0b2c639c533813f4aa9d7837caf62653d097ff85', 6, 'USDC', 'USD Coin')
 const USDT_TOKEN = new Token(ChainId.OPTIMISM, '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58', 6, 'USDT', 'Tether USD')
 const DAI_TOKEN = new Token(ChainId.OPTIMISM, '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1', 18, 'DAI', 'Dai Stablecoin')
@@ -23,7 +24,7 @@ describe('QuoterV3 test', function () {
         console.log('account0:', accounts[0].account.address)
 
         await QuoterV3Help.setup({
-            ChainId: ChainId.OPTIMISM,
+            WETH_TOKEN,
             USDC_TOKEN,
             USDT_TOKEN,
             DAI_TOKEN,
@@ -53,7 +54,7 @@ describe('QuoterV3 test', function () {
 
     it('quote amountOut USDC>ETH', async function () {
         let tokenIn = USDC_TOKEN
-        let tokenOut = NATIVE_ETH
+        let tokenOut = WETH_TOKEN
         let amountIn = viem.parseUnits('100', 6)
 
         let best = await QuoterV3Help.getBestOfAmountOut(QuoterV3Help.getRoutersInfo(tokenIn, tokenOut), amountIn)
@@ -62,7 +63,7 @@ describe('QuoterV3 test', function () {
 
     it('quote amountIn USDC>ETH', async function () {
         let tokenIn = USDC_TOKEN
-        let tokenOut = NATIVE_ETH
+        let tokenOut = WETH_TOKEN
         let amountOut = viem.parseUnits('1', 18)
 
         let best = await QuoterV3Help.getBestOfAmountIn(QuoterV3Help.getRoutersInfo(tokenIn, tokenOut), amountOut)
@@ -95,7 +96,7 @@ describe('QuoterV3 test', function () {
 
     it('quote amountOut USDC>ETH & USDC>USD>ETH', async function () {
         let tokenIn = USDC_TOKEN
-        let tokenOut = NATIVE_ETH
+        let tokenOut = WETH_TOKEN
         let amountIn = viem.parseUnits('10000', 6)
 
         let r0 = QuoterV3Help.getRoutersInfo(tokenIn, tokenOut)
@@ -107,7 +108,7 @@ describe('QuoterV3 test', function () {
 
     it('quote amountIn USDC>ETH & USDC>USD>ETH', async function () {
         let tokenIn = USDC_TOKEN
-        let tokenOut = NATIVE_ETH
+        let tokenOut = WETH_TOKEN
         let amountOut = viem.parseUnits('1', 18)
 
         let r0 = QuoterV3Help.getRoutersInfo(tokenIn, tokenOut)
@@ -120,7 +121,7 @@ describe('QuoterV3 test', function () {
     //////////  sell ETH  //////////
 
     it('quote amountOut ETH>USDC & ETH>USD>USDC', async function () {
-        let tokenIn = NATIVE_ETH
+        let tokenIn = WETH_TOKEN
         let tokenOut = USDC_TOKEN
         let amountIn = viem.parseUnits('1', 18)
 
@@ -132,7 +133,7 @@ describe('QuoterV3 test', function () {
     })
 
     it('quote amountIn ETH>USDC & ETH>USD>USDC', async function () {
-        let tokenIn = NATIVE_ETH
+        let tokenIn = WETH_TOKEN
         let tokenOut = USDC_TOKEN
         let amountOut = viem.parseUnits('10000', 6)
 
