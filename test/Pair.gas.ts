@@ -2,13 +2,13 @@ import hre from 'hardhat'
 import * as viem from 'viem'
 
 
-describe('OrderPool gas test', function () {
+describe('Pair gas test', function () {
 
     let accounts:any
     let publicClient:any
     let token:any
     let usdt:any
-    let orderPool:any
+    let pair:any
 
     before(async function () {
         accounts = await hre.viem.getWalletClients()
@@ -29,31 +29,31 @@ describe('OrderPool gas test', function () {
         await usdt.write.mint([accounts[0].account.address, viem.parseUnits('1000', 6)])
         await usdt.write.mint([accounts[1].account.address, viem.parseUnits('1000', 6)])
 
-        orderPool = await hre.viem.deployContract('OrderPool', [token.address, usdt.address])
-        console.log('orderPool deployed:', orderPool.address)
+        pair = await hre.viem.deployContract('Pair', [token.address, usdt.address])
+        console.log('pair deployed:', pair.address)
     
 
         //makeBuyOrder
-        await usdt.write.approve([orderPool.address, viem.parseUnits('1000', 6)])
-        for (let i=0; i<100; i++) {
-            await orderPool.write.makeBuyOrder([viem.parseUnits((1 + i/10).toString(), 6), viem.parseUnits('0.1', 18), 0n])
+        await usdt.write.approve([pair.address, viem.parseUnits('1000', 6)])
+        for (let i=0; i<10; i++) {
+            await pair.write.makeBuyOrder([viem.parseUnits((1 + i/10).toString(), 6), viem.parseUnits('0.1', 18), 0n])
         }
         await print()
     
 
         //takeBuyOrder
-        await token.write.approve([orderPool.address, viem.parseUnits('1000', 18)], { account: accounts[1].account })
+        await token.write.approve([pair.address, viem.parseUnits('1000', 18)], { account: accounts[1].account })
 
         let gas = await publicClient.estimateContractGas({
-            address: orderPool.address,
-            abi: orderPool.abi,
+            address: pair.address,
+            abi: pair.abi,
             functionName: 'takeBuyOrder',
             args: [viem.parseUnits('10', 18), 0n],
             account: accounts[1].account
         })
-        console.log('estimateContractGas:', gas) //10:719421  100:6444613
+        console.log('estimateContractGas:', gas) //10:702954n  100:6253505n
 
-        await orderPool.write.takeBuyOrder([viem.parseUnits('10', 18), 0n], { account: accounts[1].account })
+        await pair.write.takeBuyOrder([viem.parseUnits('10', 18), 0n], { account: accounts[1].account })
         
         await print()
     })
@@ -84,14 +84,14 @@ describe('OrderPool gas test', function () {
             )
         )
 
-        console.log('pool token:', 
+        console.log('pair token:', 
             viem.formatUnits(
-                await token.read.balanceOf([orderPool.address]), 
+                await token.read.balanceOf([pair.address]), 
                 await token.read.decimals()
             ), 
             'usdt:',
             viem.formatUnits(
-                await usdt.read.balanceOf([orderPool.address]), 
+                await usdt.read.balanceOf([pair.address]), 
                 await usdt.read.decimals()
             )
         )

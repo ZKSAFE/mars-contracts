@@ -5,11 +5,11 @@
 
 import "hardhat/types/artifacts";
 
-import { OrderPool$Type } from "./OrderPool";
+import { Pair$Type } from "./Pair";
 
 declare module "hardhat/types/artifacts" {
   interface ArtifactsMap {
-    ["OrderPool"]: OrderPool$Type;
-    ["contracts/OrderPool.sol:OrderPool"]: OrderPool$Type;
+    ["Pair"]: Pair$Type;
+    ["contracts/Pair.sol:Pair"]: Pair$Type;
   }
 }
