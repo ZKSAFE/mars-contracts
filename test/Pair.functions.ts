@@ -65,13 +65,13 @@ describe('Pair functions test', function () {
         let topBuyOrderId = await pair.read.topBuyOrderId()
         let buyOrders = await pairReadHelp.read.getBuyList([pair.address, topBuyOrderId, 7n])
 
-        expect(buyOrders[0].orderId).to.equal(7n)
-        expect(buyOrders[1].orderId).to.equal(2n)
-        expect(buyOrders[2].orderId).to.equal(4n)
-        expect(buyOrders[3].orderId).to.equal(1n)
-        expect(buyOrders[4].orderId).to.equal(6n)
-        expect(buyOrders[5].orderId).to.equal(3n)
-        expect(buyOrders[6].orderId).to.equal(5n)
+        expect(buyOrders[0].orderId).to.equal(7)
+        expect(buyOrders[1].orderId).to.equal(2)
+        expect(buyOrders[2].orderId).to.equal(4)
+        expect(buyOrders[3].orderId).to.equal(1)
+        expect(buyOrders[4].orderId).to.equal(6)
+        expect(buyOrders[5].orderId).to.equal(3)
+        expect(buyOrders[6].orderId).to.equal(5)
 
         await print()
     })
@@ -99,9 +99,9 @@ describe('Pair functions test', function () {
         let buyOrders = await pairReadHelp.read.getBuyList([pair.address, topBuyOrderId, 3n])
         // console.log(buyOrders)
 
-        expect(buyOrders[0].orderId).to.equal(4n)
-        expect(buyOrders[1].orderId).to.equal(6n)
-        expect(buyOrders[2].orderId).to.equal(3n)
+        expect(buyOrders[0].orderId).to.equal(4)
+        expect(buyOrders[1].orderId).to.equal(6)
+        expect(buyOrders[2].orderId).to.equal(3)
 
         await print()
     })
@@ -114,26 +114,26 @@ describe('Pair functions test', function () {
 
         let topBuyOrderId = await pair.read.topBuyOrderId()
         let buyOrders = await pairReadHelp.read.getBuyList([pair.address, topBuyOrderId, 3n])
-        expect(buyOrders[0].orderId).to.equal(4n)
+        expect(buyOrders[0].orderId).to.equal(4)
         expect(buyOrders[0].amountInUsed).to.equal(viem.parseUnits('75', 6))
 
         await pair.write.takeBuyOrder([viem.parseUnits('2', 18), 0n], { account: accounts[2].account })
         topBuyOrderId = await pair.read.topBuyOrderId()
         buyOrders = await pairReadHelp.read.getBuyList([pair.address, topBuyOrderId, 3n])
-        expect(buyOrders[0].orderId).to.equal(3n)
+        expect(buyOrders[0].orderId).to.equal(3)
         expect(buyOrders[0].amountInUsed).to.equal(viem.parseUnits('25', 6))
 
         await pair.write.takeBuyOrder([viem.parseUnits('1', 18), 0n], { account: accounts[2].account })
         topBuyOrderId = await pair.read.topBuyOrderId()
         buyOrders = await pairReadHelp.read.getBuyList([pair.address, topBuyOrderId, 3n])
-        expect(buyOrders[0].orderId).to.equal(0n)
+        expect(buyOrders[0].orderId).to.equal(0)
 
         await print()
     })
 
 
     it('end', async function () {
-        expect(await pair.read.topBuyOrderId()).to.equal(0n)
+        expect(await pair.read.topBuyOrderId()).to.equal(0)
 
         //end balances
         expect(await weth.read.balanceOf([accounts[0].account.address])).to.equal(viem.parseUnits('1', 18))
@@ -146,63 +146,56 @@ describe('Pair functions test', function () {
         expect(await usdt.read.balanceOf([pair.address])).to.equal(viem.parseUnits('0', 6))
 
         //done orders
-        expect(await pair.read.getBuyOrder([1n])).to.deep.equal({
-            beforeOrderId: 4n,
-            afterOrderId: 6n,
+        expect(await pairReadHelp.read.getOrder([pair.address, 1n])).to.deep.equal({
+            orderId: 1,
             owner: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
             amountIn: 100000000n,
             amountOut: 1000000000000000000n,
             amountInUsed: 0n,
             isDone: true
         })
-        expect(await pair.read.getBuyOrder([2n])).to.deep.equal({
-            beforeOrderId: 0n,
-            afterOrderId: 4n,
+        expect(await pairReadHelp.read.getOrder([pair.address, 2n])).to.deep.equal({
+            orderId: 2,
             owner: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
             amountIn: 200000000n,
             amountOut: 1000000000000000000n,
             amountInUsed: 0n,
             isDone: true
         })
-        expect(await pair.read.getBuyOrder([3n])).to.deep.equal({
-            beforeOrderId: 0n,
-            afterOrderId: 0n,
+        expect(await pairReadHelp.read.getOrder([pair.address, 3n])).to.deep.equal({
+            orderId: 3,
             owner: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
             amountIn: 50000000n,
             amountOut: 1000000000000000000n,
             amountInUsed: 50000000n,
             isDone: true
         })
-        expect(await pair.read.getBuyOrder([4n])).to.deep.equal({
-            beforeOrderId: 0n,
-            afterOrderId: 6n,
+        expect(await pairReadHelp.read.getOrder([pair.address, 4n])).to.deep.equal({
+            orderId: 4,
             owner: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
             amountIn: 150000000n,
             amountOut: 1000000000000000000n,
             amountInUsed: 150000000n,
             isDone: true
         })
-        expect(await pair.read.getBuyOrder([5n])).to.deep.equal({
-            beforeOrderId: 3n,
-            afterOrderId: 0n,
+        expect(await pairReadHelp.read.getOrder([pair.address, 5n])).to.deep.equal({
+            orderId: 5,
             owner: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
             amountIn: 25000000n,
             amountOut: 1000000000000000000n,
             amountInUsed: 0n,
             isDone: true
         })
-        expect(await pair.read.getBuyOrder([6n])).to.deep.equal({
-            beforeOrderId: 0n,
-            afterOrderId: 3n,
+        expect(await pairReadHelp.read.getOrder([pair.address, 6n])).to.deep.equal({
+            orderId: 6,
             owner: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
             amountIn: 75000000n,
             amountOut: 1000000000000000000n,
             amountInUsed: 75000000n,
             isDone: true
         })
-        expect(await pair.read.getBuyOrder([7n])).to.deep.equal({
-            beforeOrderId: 0n,
-            afterOrderId: 2n,
+        expect(await pairReadHelp.read.getOrder([pair.address, 7n])).to.deep.equal({
+            orderId: 7,
             owner: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
             amountIn: 250000000n,
             amountOut: 1000000000000000000n,
