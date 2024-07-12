@@ -2,7 +2,7 @@ import hre from 'hardhat'
 import * as viem from 'viem'
 
 
-describe('Pair base test', function () {
+describe('Pair decimals test', function () {
 
     let accounts:any
     let publicClient:any
@@ -64,7 +64,7 @@ describe('Pair base test', function () {
         await print()
     })
 
-    
+
     it('testing PEPE/USDT', async function () {
         token = await hre.viem.deployContract('MockERC20', ['TEST PEPE', 'PEPE'])
         console.log('token deployed:', token.address)
