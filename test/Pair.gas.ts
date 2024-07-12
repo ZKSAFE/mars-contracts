@@ -35,7 +35,7 @@ describe('Pair gas test', function () {
 
         //makeBuyOrder
         await usdt.write.approve([pair.address, viem.parseUnits('1000', 6)])
-        for (let i=0; i<10; i++) {
+        for (let i=0; i<100; i++) {
             await pair.write.makeBuyOrder([viem.parseUnits((1 + i/10).toString(), 6), viem.parseUnits('0.1', 18), 0n])
         }
         await print()

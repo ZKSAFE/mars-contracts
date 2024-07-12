@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "hardhat/console.sol";
 
 contract Pair {
@@ -12,7 +11,7 @@ contract Pair {
     uint96 public lastOrderId = 0;
 
     struct Order {
-        // uint96 orderId; //0:not exist; start from 1
+        //(removed for saving gas) uint96 orderId; //0:not exist; start from 1
         uint96 beforeOrderId; //0:this is the top order
         uint96 afterOrderId; //0:this is the last order
         address owner;
