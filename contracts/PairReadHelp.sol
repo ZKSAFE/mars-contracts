@@ -32,9 +32,26 @@ contract PairReadHelp {
         return result;
     }
 
+    function getSellList(address pairAddr, uint48 fromOrderId, uint8 num) public view returns (Order[] memory) {
+        Pair pair = Pair(pairAddr);
+        Pair.Order memory pairOrder = pair.getSellOrder(fromOrderId);
+        Order[] memory result = new Order[](num);
+
+        result[0] = convertOrder(pairOrder, fromOrderId);
+        for (uint8 i = 1; i < num; i++) {
+            uint48 orderId = pairOrder.afterOrderId;
+            pairOrder = pair.getSellOrder(orderId);
+            result[i] = convertOrder(pairOrder, orderId);
+        }
+        return result;
+    }
+
     function getOrder(address pairAddr, uint48 orderId) public view returns (Order memory) {
         Pair pair = Pair(pairAddr);
         Pair.Order memory pairOrder = pair.getBuyOrder(orderId);
+        if (pairOrder.owner == address(0)) {
+            pairOrder = pair.getSellOrder(orderId);
+        }
         return convertOrder(pairOrder, orderId);
     }
 
