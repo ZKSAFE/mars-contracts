@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "hardhat/console.sol";
 
-contract Pair {
+contract MarsPair {
     IERC20 public immutable token0;
     IERC20 public immutable token1;
     uint8 public immutable fee; //100 means 1%

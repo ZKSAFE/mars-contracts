@@ -29,7 +29,7 @@ describe('Pair gas test', function () {
         await usdt.write.mint([accounts[0].account.address, viem.parseUnits('1000', 6)])
         await usdt.write.mint([accounts[1].account.address, viem.parseUnits('1000', 6)])
 
-        pair = await hre.viem.deployContract('Pair', [token.address, usdt.address, 100])
+        pair = await hre.viem.deployContract('MarsPair', [token.address, usdt.address, 100])
         console.log('pair deployed:', pair.address)
     
 

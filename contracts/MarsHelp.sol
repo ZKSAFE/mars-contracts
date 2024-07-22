@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import "./Pair.sol";
+import "./MarsPair.sol";
 import "hardhat/console.sol";
 
-contract PairReadHelp {
+contract MarsHelp {
     
     struct Order {
         uint48 orderId; //0:not exist; start from 1
@@ -19,8 +19,8 @@ contract PairReadHelp {
     }
 
     function getBuyList(address pairAddr, uint48 fromOrderId, uint8 num) public view returns (Order[] memory) {
-        Pair pair = Pair(pairAddr);
-        Pair.Order memory pairOrder = pair.getBuyOrder(fromOrderId);
+        MarsPair pair = MarsPair(pairAddr);
+        MarsPair.Order memory pairOrder = pair.getBuyOrder(fromOrderId);
         Order[] memory result = new Order[](num);
 
         result[0] = convertOrder(pairOrder, fromOrderId);
@@ -33,8 +33,8 @@ contract PairReadHelp {
     }
 
     function getSellList(address pairAddr, uint48 fromOrderId, uint8 num) public view returns (Order[] memory) {
-        Pair pair = Pair(pairAddr);
-        Pair.Order memory pairOrder = pair.getSellOrder(fromOrderId);
+        MarsPair pair = MarsPair(pairAddr);
+        MarsPair.Order memory pairOrder = pair.getSellOrder(fromOrderId);
         Order[] memory result = new Order[](num);
 
         result[0] = convertOrder(pairOrder, fromOrderId);
@@ -47,15 +47,15 @@ contract PairReadHelp {
     }
 
     function getOrder(address pairAddr, uint48 orderId) public view returns (Order memory) {
-        Pair pair = Pair(pairAddr);
-        Pair.Order memory pairOrder = pair.getBuyOrder(orderId);
+        MarsPair pair = MarsPair(pairAddr);
+        MarsPair.Order memory pairOrder = pair.getBuyOrder(orderId);
         if (pairOrder.owner == address(0)) {
             pairOrder = pair.getSellOrder(orderId);
         }
         return convertOrder(pairOrder, orderId);
     }
 
-    function convertOrder(Pair.Order memory pairOrder, uint48 orderId) internal pure returns (Order memory) {
+    function convertOrder(MarsPair.Order memory pairOrder, uint48 orderId) internal pure returns (Order memory) {
         return Order(
             orderId, 
             pairOrder.owner,
@@ -64,6 +64,10 @@ contract PairReadHelp {
             pairOrder.amountInUsed,
             pairOrder.beforeOrderId == type(uint48).max
         );
+    }
+
+    function findBeforeOrderIdInBuyList(uint token1In, uint token0Out) public returns (uint48) {
+
     }
 
 }

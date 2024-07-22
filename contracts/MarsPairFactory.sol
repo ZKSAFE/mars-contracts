@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import "./Pair.sol";
+import "./MarsPair.sol";
 import "hardhat/console.sol";
 
-contract PairFactory {
-    bytes32 public constant INIT_CODE_PAIR_HASH = keccak256(abi.encodePacked(type(Pair).creationCode));
+contract MarsPairFactory {
+    bytes32 public constant INIT_CODE_PAIR_HASH = keccak256(abi.encodePacked(type(MarsPair).creationCode));
 
     address public feeTo;
     address public feeToSetter;

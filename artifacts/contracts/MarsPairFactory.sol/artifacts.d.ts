@@ -5,11 +5,11 @@
 
 import "hardhat/types/artifacts";
 
-import { PairFactory$Type } from "./PairFactory";
+import { MarsPairFactory$Type } from "./MarsPairFactory";
 
 declare module "hardhat/types/artifacts" {
   interface ArtifactsMap {
-    ["PairFactory"]: PairFactory$Type;
-    ["contracts/PairFactory.sol:PairFactory"]: PairFactory$Type;
+    ["MarsPairFactory"]: MarsPairFactory$Type;
+    ["contracts/MarsPairFactory.sol:MarsPairFactory"]: MarsPairFactory$Type;
   }
 }
