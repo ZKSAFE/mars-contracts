@@ -99,7 +99,7 @@ contract MarsPair {
         return newOrderId;
     }
 
-    function takeBuyOrder(uint token0In, uint token1want) public returns (uint token0Sold, uint token1Gain, uint token0Fee) {
+    function takeBuyOrder(uint token0In, uint token1Want) public returns (uint token0Pay, uint token1Gain, uint token0Fee) {
         require(topBuyOrderId != 0, "buyOrders is empty");
 
         token0.transferFrom(msg.sender, address(this), token0In);
@@ -111,7 +111,7 @@ contract MarsPair {
 
         while (topBuyOrderId != 0) {
             Order storage topOrder = buyOrders[topBuyOrderId];
-            if (token0In * topOrder.amountIn < token1want * topOrder.amountOut ) {
+            if (token0In * topOrder.amountIn < token1Want * topOrder.amountOut ) {
                 break; //price not good
             }
             uint topOrderToken0Left = topOrder.amountOut - topOrder.amountInUsed * topOrder.amountOut / topOrder.amountIn;
@@ -143,10 +143,10 @@ contract MarsPair {
             }
         }
 
-        token0Sold = token0In - takerToken0Left;
-        require(token0Sold > 0, "no deal");
+        token0Pay = token0In - takerToken0Left;
+        require(token0Pay > 0, "no deal");
 
-        token0Fee = token0Sold * uint(fee) / 10000;
+        token0Fee = token0Pay * uint(fee) / 10000;
         if (token0Fee > 0) {
             token0.transferFrom(msg.sender, feeTo, token0Fee);
         }
@@ -156,14 +156,6 @@ contract MarsPair {
         if (token1Gain > 0) {
             token1.transfer(msg.sender, token1Gain);
         }
-    }
-
-    //Experience like CEX, if partly done, the left makes sell order
-    function takeBuyOrder2(uint token0InWithFee, uint token1want) public returns (uint token0Sold, uint token1Gain, uint token0Fee) {
-        uint preFee = token0InWithFee * uint(fee) / 10000;
-        (token0Sold, token1Gain, token0Fee) = takeBuyOrder(token0InWithFee - preFee, token1want);
-        //TBA
-
     }
 
     function cancelBuyOrder(uint48 orderId) public returns (uint token1Left) {
@@ -181,6 +173,14 @@ contract MarsPair {
         if (token1Left > 0) {
             token1.transfer(order.owner, token1Left);
         }
+    }
+
+    function changeBuyOrderOwner(uint48 orderId, address newOwner) public {
+        Order storage order = buyOrders[orderId];
+        require(order.owner == msg.sender, "you are not owner of the order");
+        require(order.beforeOrderId != type(uint48).max, "the order is already removed(done)");
+
+        order.owner = newOwner;
     }
 
     ///////////////Sell Order////////////
@@ -234,7 +234,7 @@ contract MarsPair {
         return newOrderId;
     }
 
-    function takeSellOrder(uint token1In, uint token0want) public returns (uint token1Sold, uint token0Gain, uint token1Fee) {
+    function takeSellOrder(uint token1In, uint token0Want) public returns (uint token1Pay, uint token0Gain, uint token1Fee) {
         require(topSellOrderId != 0, "sellOrders is empty");
 
         token1.transferFrom(msg.sender, address(this), token1In);
@@ -246,7 +246,7 @@ contract MarsPair {
 
         while (topSellOrderId != 0) {
             Order storage topOrder = sellOrders[topSellOrderId];
-            if (token1In * topOrder.amountIn < token0want * topOrder.amountOut ) {
+            if (token1In * topOrder.amountIn < token0Want * topOrder.amountOut ) {
                 break; //price not good
             }
             uint topOrderToken1Left = topOrder.amountOut - topOrder.amountInUsed * topOrder.amountOut / topOrder.amountIn;
@@ -278,10 +278,10 @@ contract MarsPair {
             }
         }
 
-        token1Sold = token1In - takerToken1Left;
-        require(token1Sold > 0, "no deal");
+        token1Pay = token1In - takerToken1Left;
+        require(token1Pay > 0, "no deal");
 
-        token1Fee = token1Sold * uint(fee) / 10000;
+        token1Fee = token1Pay * uint(fee) / 10000;
         if (token1Fee > 0) {
             token1.transferFrom(msg.sender, feeTo, token1Fee);
         }
@@ -291,14 +291,6 @@ contract MarsPair {
         if (token0Gain > 0) {
             token0.transfer(msg.sender, token0Gain);
         }
-    }
-
-    // Experience like CEX, if partly done, the left makes buy order
-    function takeSellOrder2(uint token1InWithFee, uint token0want) public returns (uint token1Sold, uint token0Gain, uint token1Fee) {
-        uint preFee = token1InWithFee * uint(fee) / 10000;
-        (token1Sold, token0Gain, token1Fee) = takeSellOrder(token1InWithFee - preFee, token0want);
-        //TBA
-
     }
 
     function cancelSellOrder(uint48 orderId) public returns (uint token0Left) {
@@ -316,6 +308,14 @@ contract MarsPair {
         if (token0Left > 0) {
             token0.transfer(order.owner, token0Left);
         }
+    }
+
+    function changeSellOrderOwner(uint48 orderId, address newOwner) public {
+        Order storage order = sellOrders[orderId];
+        require(order.owner == msg.sender, "you are not owner of the order");
+        require(order.beforeOrderId != type(uint48).max, "the order is already removed(done)");
+
+        order.owner = newOwner;
     }
 
     function _removeOrderLink(Order storage order, mapping (uint48 => Order) storage orders) internal {

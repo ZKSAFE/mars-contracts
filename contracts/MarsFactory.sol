@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./MarsPair.sol";
 import "hardhat/console.sol";
 
-contract MarsPairFactory {
+contract MarsFactory {
     bytes32 public constant INIT_CODE_PAIR_HASH = keccak256(abi.encodePacked(type(MarsPair).creationCode));
 
     address public feeTo;
