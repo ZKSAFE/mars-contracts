@@ -12,16 +12,24 @@ import "hardhat/console.sol";
  */
 contract MarsService {
 
-    //this Order combine OrderCreate and MarsPair.Order
-    struct Order {
+    //for BuyList and SellList
+    struct ListOrder {
+        uint48 orderId;
+        uint112 amountIn;
+        uint112 amountOut;
+        uint32 progress;
+    }
+
+    //UserOrder combine OrderCreate and MarsPair.Order
+    struct UserOrder {
         address pair;
         uint48 orderId;
         uint32 createTime;
         bool isBuy;
         address owner;
-        uint amountIn;
-        uint amountOut;
-        uint amountInUsed;
+        uint112 amountIn;
+        uint112 amountOut;
+        uint32 progress;
         bool isRemoved;
     }
 
@@ -47,8 +55,8 @@ contract MarsService {
     ///////// view /////////
     ////////////////////////
 
-    function getBuyList(address pairAddr, uint48 fromOrderId, uint8 num) external view returns (MarsPair.Order[] memory) {
-        MarsPair.Order[] memory result = new MarsPair.Order[](num);
+    function getBuyList(address pairAddr, uint48 fromOrderId, uint8 num) external view returns (ListOrder[] memory) {
+        ListOrder[] memory result = new ListOrder[](num);
         MarsPair pair = MarsPair(pairAddr);
 
         if (fromOrderId == 0) {
@@ -56,17 +64,17 @@ contract MarsService {
         }
 
         MarsPair.Order memory pairOrder = pair.getBuyOrder(fromOrderId);
-        result[0] = pairOrder;
+        result[0] = ListOrder(fromOrderId, pairOrder.amountIn, pairOrder.amountOut, pairOrder.progress);
         for (uint8 i = 1; i < num; i++) {
             uint48 orderId = pairOrder.afterOrderId;
             pairOrder = pair.getBuyOrder(orderId);
-            result[i] = pairOrder;
+            result[i] = ListOrder(orderId, pairOrder.amountIn, pairOrder.amountOut, pairOrder.progress);
         }
         return result;
     }
 
-    function getSellList(address pairAddr, uint48 fromOrderId, uint8 num) external view returns (MarsPair.Order[] memory) {
-        MarsPair.Order[] memory result = new MarsPair.Order[](num);
+    function getSellList(address pairAddr, uint48 fromOrderId, uint8 num) external view returns (ListOrder[] memory) {
+        ListOrder[] memory result = new ListOrder[](num);
         MarsPair pair = MarsPair(pairAddr);
 
         if (fromOrderId == 0) {
@@ -74,17 +82,17 @@ contract MarsService {
         }
 
         MarsPair.Order memory pairOrder = pair.getSellOrder(fromOrderId);
-        result[0] = pairOrder;
+        result[0] = ListOrder(fromOrderId, pairOrder.amountIn, pairOrder.amountOut, pairOrder.progress);
         for (uint8 i = 1; i < num; i++) {
             uint48 orderId = pairOrder.afterOrderId;
             pairOrder = pair.getSellOrder(orderId);
-            result[i] = pairOrder;
+            result[i] = ListOrder(orderId, pairOrder.amountIn, pairOrder.amountOut, pairOrder.progress);
         }
         return result;
     }
 
-    function getUserOrders(address user, uint48 startIndex, uint48 num) external view returns (Order[] memory) {
-        Order[] memory orders = new Order[](num);
+    function getUserOrders(address user, uint48 startIndex, uint48 num) external view returns (UserOrder[] memory) {
+        UserOrder[] memory orders = new UserOrder[](num);
 
         if (startIndex == 0) {
             startIndex = userOrdersLength[user];
@@ -96,7 +104,7 @@ contract MarsService {
         for (uint48 index = startIndex; startIndex - index < num; --index) {
             OrderCreate memory orderCreate = orderCreates[_encodeAddressUint48(user, index)];
             MarsPair.Order memory pairOrder = _getPairOrder(orderCreate.pair, orderCreate.orderId, orderCreate.isBuy);
-            orders[startIndex - index] = _convertOrder(orderCreate, pairOrder);
+            orders[startIndex - index] = _combineUserOrder(orderCreate, pairOrder);
         }
         return orders;
     }
@@ -114,8 +122,8 @@ contract MarsService {
         u48 = uint48(uint208(b26));
     }
 
-    function _convertOrder(OrderCreate memory orderCreate, MarsPair.Order memory pairOrder) internal pure returns (Order memory) {
-        return Order(
+    function _combineUserOrder(OrderCreate memory orderCreate, MarsPair.Order memory pairOrder) internal pure returns (UserOrder memory) {
+        return UserOrder(
             orderCreate.pair,
             orderCreate.orderId,
             orderCreate.createTime,
@@ -123,7 +131,7 @@ contract MarsService {
             pairOrder.owner,
             pairOrder.amountIn,
             pairOrder.amountOut,
-            pairOrder.amountInUsed,
+            pairOrder.progress,
             pairOrder.beforeOrderId == type(uint48).max
         );
     }
@@ -140,7 +148,7 @@ contract MarsService {
     ///////// buy /////////
     ////////////////////////
 
-    function _findBeforeOrderIdInBuyList(address pairAddr, uint token1In, uint token0Out, uint48 findFromId) view internal returns (uint48) {
+    function _findBeforeOrderIdInBuyList(address pairAddr, uint112 token1In, uint112 token0Out, uint48 findFromId) view internal returns (uint48) {
         MarsPair pair = MarsPair(pairAddr);
         uint48 id = pair.topBuyOrderId();
 
@@ -152,7 +160,7 @@ contract MarsService {
             findFromId = id;
         }
 
-        (uint48 beforeOrderId, uint48 afterOrderId, , uint amountIn, uint amountOut, ) = pair.buyOrders(findFromId);
+        (uint48 beforeOrderId, uint48 afterOrderId, , uint112 amountIn, uint112 amountOut, ) = pair.buyOrders(findFromId);
         if (amountIn != 0 && beforeOrderId != type(uint48).max) {
             id = findFromId;
         }
@@ -173,7 +181,7 @@ contract MarsService {
     }
 
     //if beforeOrder not exist, auto find BeforeOrderId
-    function makeBuyOrder(address pairAddr, uint token1In, uint token0Out, uint48 beforeOrderId) external returns (uint48 newOrderId) {
+    function makeBuyOrder(address pairAddr, uint112 token1In, uint112 token0Out, uint48 beforeOrderId) external returns (uint48 newOrderId) {
         MarsPair pair = MarsPair(pairAddr);
 
         IERC20 token1 = pair.token1();
@@ -190,12 +198,12 @@ contract MarsService {
     }
 
     //Experience like CEX, if partly done, the left makes sell order
-    function takeBuyOrder(address pairAddr, uint token0In, uint token1Want) external returns (uint token0Pay, uint token1Gain, uint token0Fee) {
+    function takeBuyOrder(address pairAddr, uint112 token0In, uint112 token1Want) external returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
         MarsPair pair = MarsPair(pairAddr);
         IERC20 token0 = pair.token0();
         
-        uint fullFee = token0In * pair.fee() / 10000;
-        uint token0InWithFee = fullFee + token0In;
+        uint112 fullFee = token0In * pair.fee() / 10000;
+        uint112 token0InWithFee = fullFee + token0In;
         token0.transferFrom(msg.sender, address(this), token0InWithFee);
         if (token0.allowance(address(this), pairAddr) < token0InWithFee) {
             token0.approve(pairAddr, type(uint).max);
@@ -209,8 +217,8 @@ contract MarsService {
         
         //make sell order
         if (token0In > token0Pay) {
-            uint newToken0In = token0In - token0Pay;
-            uint newToken1Want = newToken0In * token1Want / token0In;
+            uint112 newToken0In = token0In - token0Pay;
+            uint112 newToken1Want = newToken0In * token1Want / token0In;
             
             uint48 beforeOrderId = _findBeforeOrderIdInSellList(pairAddr, newToken0In, newToken1Want, 0);
             uint48 newOrderId = pair.makeSellOrder(newToken0In, newToken1Want, beforeOrderId);
@@ -219,12 +227,12 @@ contract MarsService {
     }
 
     //Experience like CEX, if partly done, the left give back
-    function takeBuyOrder2(address pairAddr, uint token0In, uint token1Want) external returns (uint token0Pay, uint token1Gain, uint token0Fee) {
+    function takeBuyOrder2(address pairAddr, uint112 token0In, uint112 token1Want) external returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
         MarsPair pair = MarsPair(pairAddr);
         IERC20 token0 = pair.token0();
         
-        uint fullFee = token0In * pair.fee() / 10000;
-        uint token0InWithFee = fullFee + token0In;
+        uint112 fullFee = token0In * pair.fee() / 10000;
+        uint112 token0InWithFee = fullFee + token0In;
         token0.transferFrom(msg.sender, address(this), token0InWithFee);
         if (token0.allowance(address(this), pairAddr) < token0InWithFee) {
             token0.approve(pairAddr, type(uint).max);
@@ -235,8 +243,8 @@ contract MarsService {
         
         //give back
         if (token0In > token0Pay) {
-            uint token0Left = token0In - token0Pay;
-            uint feeBack = fullFee - token0Fee;
+            uint112 token0Left = token0In - token0Pay;
+            uint112 feeBack = fullFee - token0Fee;
             token0.transfer(msg.sender, token0Left + feeBack); //give back
         }
     }
@@ -246,7 +254,7 @@ contract MarsService {
     ///////// sell /////////
     ////////////////////////
 
-    function _findBeforeOrderIdInSellList(address pairAddr, uint token0In, uint token1Out, uint48 findFromId) view internal returns (uint48) {
+    function _findBeforeOrderIdInSellList(address pairAddr, uint112 token0In, uint112 token1Out, uint48 findFromId) view internal returns (uint48) {
         MarsPair pair = MarsPair(pairAddr);
         uint48 id = pair.topSellOrderId();
 
@@ -258,7 +266,7 @@ contract MarsService {
             findFromId = id;
         }
 
-        (uint48 beforeOrderId, uint48 afterOrderId, , uint amountIn, uint amountOut, ) = pair.sellOrders(findFromId);
+        (uint48 beforeOrderId, uint48 afterOrderId, , uint112 amountIn, uint112 amountOut, ) = pair.sellOrders(findFromId);
         if (amountIn != 0 && beforeOrderId != type(uint48).max) {
             id = findFromId;
         }
@@ -279,7 +287,7 @@ contract MarsService {
     }
 
     //Auto find BeforeOrderId
-    function makeSellOrder(address pairAddr, uint token0In, uint token1Out, uint48 beforeOrderId) external returns (uint48 newOrderId) {
+    function makeSellOrder(address pairAddr, uint112 token0In, uint112 token1Out, uint48 beforeOrderId) external returns (uint48 newOrderId) {
         MarsPair pair = MarsPair(pairAddr);
 
         IERC20 token0 = pair.token0();
@@ -296,11 +304,11 @@ contract MarsService {
     }
 
     //Experience like CEX, if partly done, the left makes buy order
-    function takeSellOrder(address pairAddr, uint token1In, uint token0Want) external returns (uint token1Pay, uint token0Gain, uint token1Fee) {
+    function takeSellOrder(address pairAddr, uint112 token1In, uint112 token0Want) external returns (uint112 token1Pay, uint112 token0Gain, uint112 token1Fee) {
         MarsPair pair = MarsPair(pairAddr);
         IERC20 token1 = pair.token1();
-        uint fullFee = token1In * pair.fee() / 10000;
-        uint token1InWithFee = fullFee + token1In;
+        uint112 fullFee = token1In * pair.fee() / 10000;
+        uint112 token1InWithFee = fullFee + token1In;
         token1.transferFrom(msg.sender, address(this), token1InWithFee);
         if (token1.allowance(address(this), pairAddr) < token1InWithFee) {
             token1.approve(pairAddr, type(uint).max);
@@ -314,8 +322,8 @@ contract MarsService {
         
         //make buy order
         if (token1In > token1Pay) {
-            uint newToken1In = token1In - token1Pay;
-            uint newToken0Want = newToken1In * token0Want / token1In;
+            uint112 newToken1In = token1In - token1Pay;
+            uint112 newToken0Want = newToken1In * token0Want / token1In;
 
             uint48 beforeOrderId = _findBeforeOrderIdInBuyList(pairAddr, newToken1In, newToken0Want, 0);
             uint48 newOrderId = pair.makeBuyOrder(newToken1In, newToken0Want, beforeOrderId);
@@ -324,11 +332,11 @@ contract MarsService {
     }
 
     //Experience like CEX, if partly done, the left makes buy order
-    function takeSellOrder2(address pairAddr, uint token1In, uint token0Want) external returns (uint token1Pay, uint token0Gain, uint token1Fee) {
+    function takeSellOrder2(address pairAddr, uint112 token1In, uint112 token0Want) external returns (uint112 token1Pay, uint112 token0Gain, uint112 token1Fee) {
         MarsPair pair = MarsPair(pairAddr);
         IERC20 token1 = pair.token1();
-        uint fullFee = token1In * pair.fee() / 10000;
-        uint token1InWithFee = fullFee + token1In;
+        uint112 fullFee = token1In * pair.fee() / 10000;
+        uint112 token1InWithFee = fullFee + token1In;
         token1.transferFrom(msg.sender, address(this), token1InWithFee);
         if (token1.allowance(address(this), pairAddr) < token1InWithFee) {
             token1.approve(pairAddr, type(uint).max);
@@ -339,8 +347,8 @@ contract MarsService {
         
         //make buy order
         if (token1In > token1Pay) {
-            uint token1Left = token1In - token1Pay;
-            uint feeBack = fullFee - token1Fee;
+            uint112 token1Left = token1In - token1Pay;
+            uint112 feeBack = fullFee - token1Fee;
             token1.transfer(msg.sender, token1Left + feeBack); //give back
         }
     }

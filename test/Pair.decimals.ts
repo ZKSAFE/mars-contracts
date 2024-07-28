@@ -83,9 +83,9 @@ describe('Pair decimals test', function () {
 
         //makeBuyOrder
         await usdt.write.approve([pair.address, viem.parseUnits('1000', 6)])
-        await pair.write.makeBuyOrder([viem.parseUnits('1', 6), viem.parseUnits('10000000000000000', 18), 0n])
-        await pair.write.makeBuyOrder([viem.parseUnits('2', 6), viem.parseUnits('10000000000000000', 18), 0n])
-        await pair.write.makeBuyOrder([viem.parseUnits('3', 6), viem.parseUnits('10000000000000000', 18), 0n])
+        await pair.write.makeBuyOrder([viem.parseUnits('1', 6), viem.parseUnits('1000000000000', 18), 0n])
+        await pair.write.makeBuyOrder([viem.parseUnits('2', 6), viem.parseUnits('1000000000000', 18), 0n])
+        await pair.write.makeBuyOrder([viem.parseUnits('3', 6), viem.parseUnits('1000000000000', 18), 0n])
 
         let topBuyOrderId = await pair.read.topBuyOrderId()
 
@@ -94,11 +94,11 @@ describe('Pair decimals test', function () {
 
         //takeBuyOrder
         await token.write.approve([pair.address, viem.parseUnits('100000000000000000', 18)], { account: accounts[1].account })
-        await pair.write.takeBuyOrder([viem.parseUnits('8000000000000000', 18), 0n], { account: accounts[1].account })
+        await pair.write.takeBuyOrder([viem.parseUnits('800000000000', 18), 0n], { account: accounts[1].account })
         await print()
-        await pair.write.takeBuyOrder([viem.parseUnits('8000000000000000', 18), 0n], { account: accounts[1].account })
+        await pair.write.takeBuyOrder([viem.parseUnits('800000000000', 18), 0n], { account: accounts[1].account })
         await print()
-        await pair.write.takeBuyOrder([viem.parseUnits('8000000000000000', 18), 0n], { account: accounts[1].account })
+        await pair.write.takeBuyOrder([viem.parseUnits('800000000000', 18), 0n], { account: accounts[1].account })
         await print()
 
         topBuyOrderId = await pair.read.topBuyOrderId()

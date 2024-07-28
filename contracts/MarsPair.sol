@@ -12,7 +12,6 @@ contract MarsPair {
 
     uint48 public count = 0;
 
-
     struct Order {
         //uses single storage slot
         //(removed for saving gas) uint48 orderId; //0:not exist; start from 1
@@ -23,7 +22,7 @@ contract MarsPair {
         //uses single storage slot
         uint112 amountIn; //token deposit in
         uint112 amountOut; //want token out
-        uint32 progress; //progress / type(uint32).max is the progress[0, 1]
+        uint32 progress; // progress/type(uint32).max is the progress[0, 1], if amountIn is a large number, precision will be decreased
         //(removed for saving gas) bool isDone; //beforeOrderId==type(uint48).max means removed(done)
     }
 
@@ -32,8 +31,6 @@ contract MarsPair {
 
     mapping (uint48 => Order) public sellOrders; //orderId => Order
     uint48 public topSellOrderId; //0:sellOrders is empty
-
-    // event MakeOrder(bool isBuy, uint tokenIn, uint tokenOut);
 
 
     constructor(address token0Addr, address token1Addr, uint8 _fee) {
@@ -51,7 +48,7 @@ contract MarsPair {
         return sellOrders[orderId];
     }
 
-     ///////////////Buy Order////////////
+    ///////////////Buy Order////////////
 
     function makeBuyOrder(uint112 token1In, uint112 token0Out, uint48 beforeOrderId) public returns (uint48) {
         require(token1In > 0, "token1In amount cannot be 0");
@@ -70,7 +67,7 @@ contract MarsPair {
         //if newOrder is the new topOrder
         if (beforeOrderId == 0) {
             Order storage topOrder = buyOrders[topBuyOrderId];
-            require(topOrder.amountOut * token1In > topOrder.amountIn * token0Out, "your price must > topOrder");
+            require(topOrder.amountOut * uint(token1In) > topOrder.amountIn * uint(token0Out), "your price must > topOrder");
 
             topOrder.beforeOrderId = count;
             buyOrders[count] = Order(0, topBuyOrderId, msg.sender, token1In, token0Out, 0);
@@ -81,7 +78,7 @@ contract MarsPair {
         Order storage beforeOrder = buyOrders[beforeOrderId];
         require(beforeOrder.amountIn != 0, "beforeOrder is not exist");
         require(beforeOrder.beforeOrderId != type(uint48).max, "beforeOrder is removed(done)");
-        require(beforeOrder.amountOut * token1In <= beforeOrder.amountIn * token0Out, "your price must <= beforeOrder");
+        require(beforeOrder.amountOut * uint(token1In) <= beforeOrder.amountIn * uint(token0Out), "your price must <= beforeOrder");
         
         //if newOrder is the new lastOrder
         if (beforeOrder.afterOrderId == 0) {
@@ -94,7 +91,7 @@ contract MarsPair {
         Order storage afterOrder = buyOrders[beforeOrder.afterOrderId];
         require(afterOrder.amountIn != 0, "afterOrder is not exist");
         require(afterOrder.beforeOrderId != type(uint48).max, "afterOrder is removed(done)");
-        require(afterOrder.amountOut * token1In > afterOrder.amountIn * token0Out, "your price must > afterOrder");
+        require(afterOrder.amountOut * uint(token1In) > afterOrder.amountIn * uint(token0Out), "your price must > afterOrder");
 
         buyOrders[count] = Order(beforeOrderId, beforeOrder.afterOrderId, msg.sender, token1In, token0Out, 0);
         beforeOrder.afterOrderId = count;
@@ -114,11 +111,11 @@ contract MarsPair {
 
         while (topBuyOrderId != 0) {
             Order storage topOrder = buyOrders[topBuyOrderId];
-            if (token0In * topOrder.amountIn < token1Want * topOrder.amountOut ) {
+            if (uint(token0In) * topOrder.amountIn < uint(token1Want) * topOrder.amountOut ) {
                 break; //price not good
             }
-            uint112 topOrderToken0Left = topOrder.amountOut - topOrder.progress * topOrder.amountOut / type(uint32).max;
-            uint112 amountInUsed = topOrder.progress * topOrder.amountIn / type(uint32).max;
+            uint112 amountInUsed = uint112(uint(topOrder.progress) * topOrder.amountIn / type(uint32).max);
+            uint112 topOrderToken0Left = topOrder.amountOut - uint112(uint(amountInUsed) * topOrder.amountOut / topOrder.amountIn);
 
             if (takerToken0Left >= topOrderToken0Left) { //completely take the order
                 takerToken0Left -= topOrderToken0Left;
@@ -134,12 +131,13 @@ contract MarsPair {
                 topBuyOrderId = topOrder.afterOrderId; //continue loop
 
             } else {  //partly take the order
-                uint112 deltaToken1Gain = takerToken0Left * topOrder.amountIn / topOrder.amountOut;
+                uint112 deltaToken1Gain = uint112(uint(takerToken0Left) * topOrder.amountIn / topOrder.amountOut);
                 token1Gain += deltaToken1Gain;
 
                 //topOrder is partly done
                 amountInUsed += deltaToken1Gain;
-                topOrder.progress = uint32(amountInUsed * type(uint32).max / topOrder.amountIn);
+                topOrder.progress = uint32(amountInUsed * type(uint32).max / topOrder.amountIn) + 1;
+                // console.log("partly take buyOrder, amountInUsed:", amountInUsed, topOrder.progress, takerToken0Left);
                 token0.transfer(topOrder.owner, takerToken0Left);
 
                 // console.log("partly done, takerToken0Left:", takerToken0Left);
@@ -174,7 +172,8 @@ contract MarsPair {
         }
         order.beforeOrderId = type(uint48).max;
 
-        uint112 amountInUsed = order.progress * order.amountIn / type(uint32).max;
+        uint112 amountInUsed = uint112(uint(order.progress) * order.amountIn / type(uint32).max);
+        // console.log("cancelBuyOrder amountInUsed:", amountInUsed, order.progress);
         token1Left = order.amountIn - amountInUsed;
         if (token1Left > 0) {
             token1.transfer(order.owner, uint(token1Left));
@@ -209,7 +208,7 @@ contract MarsPair {
         //if newOrder is the new topOrder
         if (beforeOrderId == 0) {
             Order storage topOrder = sellOrders[topSellOrderId];
-            require(topOrder.amountOut * token0In > topOrder.amountIn * token1Out, "your price must < topOrder");
+            require(topOrder.amountOut * uint(token0In) > topOrder.amountIn * uint(token1Out), "your price must < topOrder");
 
             topOrder.beforeOrderId = count;
             sellOrders[count] = Order(0, topSellOrderId, msg.sender, token0In, token1Out, 0);
@@ -220,7 +219,7 @@ contract MarsPair {
         Order storage beforeOrder = sellOrders[beforeOrderId];
         require(beforeOrder.amountIn != 0, "beforeOrder is not exist");
         require(beforeOrder.beforeOrderId != type(uint48).max, "beforeOrder is removed(done)");
-        require(beforeOrder.amountOut * token0In <= beforeOrder.amountIn * token1Out, "your price must >= beforeOrder");
+        require(beforeOrder.amountOut * uint(token0In) <= beforeOrder.amountIn * uint(token1Out), "your price must >= beforeOrder");
         
         //if newOrder is the new lastOrder
         if (beforeOrder.afterOrderId == 0) {
@@ -233,7 +232,7 @@ contract MarsPair {
         Order storage afterOrder = sellOrders[beforeOrder.afterOrderId];
         require(afterOrder.amountIn != 0, "afterOrder is not exist");
         require(afterOrder.beforeOrderId != type(uint48).max, "afterOrder is removed(done)");
-        require(afterOrder.amountOut * token0In > afterOrder.amountIn * token1Out, "your price must < afterOrder");
+        require(afterOrder.amountOut * uint(token0In) > afterOrder.amountIn * uint(token1Out), "your price must < afterOrder");
 
         sellOrders[count] = Order(beforeOrderId, beforeOrder.afterOrderId, msg.sender, token0In, token1Out, 0);
         beforeOrder.afterOrderId = count;
@@ -253,11 +252,11 @@ contract MarsPair {
 
         while (topSellOrderId != 0) {
             Order storage topOrder = sellOrders[topSellOrderId];
-            if (token1In * topOrder.amountIn < token0Want * topOrder.amountOut ) {
+            if (uint(token1In) * topOrder.amountIn < uint(token0Want) * topOrder.amountOut ) {
                 break; //price not good
             }
-            uint112 topOrderToken1Left = topOrder.amountOut - topOrder.progress * topOrder.amountOut / type(uint32).max;
-            uint112 amountInUsed = topOrder.progress * topOrder.amountIn / type(uint32).max;
+            uint112 amountInUsed = uint112(uint(topOrder.progress) * topOrder.amountIn / type(uint32).max);
+            uint112 topOrderToken1Left = topOrder.amountOut - uint112(uint(amountInUsed) * topOrder.amountOut / topOrder.amountIn);
 
             if (takerToken1Left >= topOrderToken1Left) { //completely take the order
                 takerToken1Left -= topOrderToken1Left;
@@ -273,12 +272,13 @@ contract MarsPair {
                 topSellOrderId = topOrder.afterOrderId; //continue loop
 
             } else {  //partly take the order
-                uint112 deltaToken0Gain = takerToken1Left * topOrder.amountIn / topOrder.amountOut;
+                uint112 deltaToken0Gain = uint112(uint(takerToken1Left) * topOrder.amountIn / topOrder.amountOut);
                 token0Gain += deltaToken0Gain;
 
                 //topOrder is partly done
                 amountInUsed += deltaToken0Gain;
-                topOrder.progress = uint32(amountInUsed * type(uint32).max / topOrder.amountIn);
+                topOrder.progress = uint32(amountInUsed * type(uint32).max / topOrder.amountIn) + 1;
+                // console.log("partly take sellOrder, amountInUsed:", amountInUsed, topOrder.progress, takerToken1Left);
                 token1.transfer(topOrder.owner, uint(takerToken1Left));
 
                 // console.log("partly done, takerToken1Left:", takerToken1Left, token0Gain);
@@ -313,7 +313,8 @@ contract MarsPair {
         }
         order.beforeOrderId = type(uint48).max;
 
-        uint112 amountInUsed = order.progress * order.amountIn / type(uint32).max;
+        uint112 amountInUsed = uint112(uint(order.progress) * order.amountIn / type(uint32).max);
+        // console.log("cancelSellOrder amountInUsed:", amountInUsed, order.progress);
         token0Left = order.amountIn - amountInUsed;
         if (token0Left > 0) {
             token0.transfer(order.owner, uint(token0Left));
