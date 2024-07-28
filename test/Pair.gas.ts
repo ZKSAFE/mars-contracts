@@ -51,7 +51,7 @@ describe('Pair gas test', function () {
             args: [viem.parseUnits('10', 18), 0n],
             account: accounts[1].account
         })
-        console.log('estimateContractGas:', gas) //10:702954n  100:6253505n
+        console.log('estimateContractGas:', gas) //10:702954n  100:6253505n  optimiz for single slot:1840383n
 
         await pair.write.takeBuyOrder([viem.parseUnits('10', 18), 0n], { account: accounts[1].account })
         
