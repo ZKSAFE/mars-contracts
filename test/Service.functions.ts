@@ -3,14 +3,14 @@ import * as viem from 'viem'
 import { expect } from "chai"
 
 
-describe('Help list test', function () {
+describe('Service list test', function () {
 
     let accounts: any
     let account: any
     let publicClient: any
     let weth: any
     let usdt: any
-    let help: any
+    let service: any
     let pair: any
 
     before(async function () {
@@ -27,8 +27,8 @@ describe('Help list test', function () {
         await usdt.write.setDecimals([6])
         await usdt.write.mint([accounts[2].account.address, viem.parseUnits('2000', 6)])
 
-        help = await hre.viem.deployContract('MarsHelp', [])
-        console.log('MarsHelp deployed:', help.address)
+        service = await hre.viem.deployContract('MarsService', [])
+        console.log('MarsService deployed:', service.address)
 
         pair = await hre.viem.deployContract('MarsPair', [weth.address, usdt.address, 100])
         console.log('pair deployed:', pair.address)
@@ -37,13 +37,13 @@ describe('Help list test', function () {
 
     it('testing makeBuyOrder', async function () {
         account = accounts[2].account
-        await usdt.write.approve([help.address, viem.parseUnits('1000', 6)], { account })
+        await usdt.write.approve([service.address, viem.parseUnits('1000', 6)], { account })
 
-        await help.write.makeBuyOrder([pair.address, viem.parseUnits('100', 6), viem.parseUnits('1', 18)], { account })
-        await help.write.makeBuyOrder([pair.address, viem.parseUnits('200', 6), viem.parseUnits('1', 18)], { account })
-        await help.write.makeBuyOrder([pair.address, viem.parseUnits('150', 6), viem.parseUnits('1', 18)], { account })
-        await help.write.makeBuyOrder([pair.address, viem.parseUnits('50', 6), viem.parseUnits('1', 18)], { account })
-        await help.write.makeBuyOrder([pair.address, viem.parseUnits('100', 6), viem.parseUnits('1', 18)], { account })
+        await service.write.makeBuyOrder([pair.address, viem.parseUnits('100', 6), viem.parseUnits('1', 18), 0], { account })
+        await service.write.makeBuyOrder([pair.address, viem.parseUnits('200', 6), viem.parseUnits('1', 18), 0], { account })
+        await service.write.makeBuyOrder([pair.address, viem.parseUnits('150', 6), viem.parseUnits('1', 18), 0], { account })
+        await service.write.makeBuyOrder([pair.address, viem.parseUnits('50', 6), viem.parseUnits('1', 18), 0], { account })
+        await service.write.makeBuyOrder([pair.address, viem.parseUnits('100', 6), viem.parseUnits('1', 18), 0], { account })
 
         await print()
     })
@@ -51,9 +51,9 @@ describe('Help list test', function () {
 
     it('testing takeBuyOrder: auto make sell order', async function () {
         account = accounts[1].account
-        await weth.write.approve([help.address, viem.parseUnits('3.03', 18)], { account })
+        await weth.write.approve([service.address, viem.parseUnits('3.03', 18)], { account })
 
-        await help.write.takeBuyOrder([pair.address, viem.parseUnits('3', 18), viem.parseUnits('330', 6)], { account })
+        await service.write.takeBuyOrder([pair.address, viem.parseUnits('3', 18), viem.parseUnits('330', 6)], { account })
 
         await print()
     })
@@ -61,9 +61,9 @@ describe('Help list test', function () {
 
     it('testing takeBuyOrder2: the left give back', async function () {
         account = accounts[1].account
-        await weth.write.approve([help.address, viem.parseUnits('1000', 18)], { account })
+        await weth.write.approve([service.address, viem.parseUnits('1000', 18)], { account })
 
-        await help.write.takeBuyOrder2([pair.address, viem.parseUnits('3', 18), viem.parseUnits('300', 6)], { account })
+        await service.write.takeBuyOrder2([pair.address, viem.parseUnits('3', 18), viem.parseUnits('300', 6)], { account })
 
         await print()
     })
@@ -71,15 +71,15 @@ describe('Help list test', function () {
 
     it('testing makeSellOrder', async function () {
         account = accounts[1].account
-        await weth.write.approve([help.address, viem.parseUnits('1000', 18)], { account })
+        await weth.write.approve([service.address, viem.parseUnits('1000', 18)], { account })
 
-        await help.write.makeSellOrder([pair.address, viem.parseUnits('1', 18), viem.parseUnits('120', 6)], { account })
-        await help.write.makeSellOrder([pair.address, viem.parseUnits('1', 18), viem.parseUnits('100', 6)], { account })
-        await help.write.makeSellOrder([pair.address, viem.parseUnits('1', 18), viem.parseUnits('40', 6)], { account })
-        await help.write.makeSellOrder([pair.address, viem.parseUnits('1', 18), viem.parseUnits('110', 6)], { account })
+        await service.write.makeSellOrder([pair.address, viem.parseUnits('1', 18), viem.parseUnits('120', 6), 0], { account })
+        await service.write.makeSellOrder([pair.address, viem.parseUnits('1', 18), viem.parseUnits('100', 6), 0], { account })
+        await service.write.makeSellOrder([pair.address, viem.parseUnits('1', 18), viem.parseUnits('40', 6), 0], { account })
+        await service.write.makeSellOrder([pair.address, viem.parseUnits('1', 18), viem.parseUnits('110', 6), 0], { account })
 
         let topSellOrderId = await pair.read.topSellOrderId()
-        let sellOrders = await help.read.getSellList([pair.address, topSellOrderId, 4n])
+        let sellOrders = await service.read.getSellList([pair.address, topSellOrderId, 4n])
         // console.log(sellOrders)
 
         await print()
@@ -88,9 +88,9 @@ describe('Help list test', function () {
 
     it('testing takeSellOrder: auto make buy order', async function () {
         account = accounts[2].account
-        await usdt.write.approve([help.address, viem.parseUnits('303', 6)], { account })
+        await usdt.write.approve([service.address, viem.parseUnits('303', 6)], { account })
 
-        await help.write.takeSellOrder([pair.address, viem.parseUnits('300', 6), viem.parseUnits('3', 18)], { account })
+        await service.write.takeSellOrder([pair.address, viem.parseUnits('300', 6), viem.parseUnits('3', 18)], { account })
 
         await print()
     })
@@ -98,9 +98,9 @@ describe('Help list test', function () {
 
     it('testing takeSellOrder2: the left give back', async function () {
         account = accounts[2].account
-        await usdt.write.approve([help.address, viem.parseUnits('1100', 6)], { account })
+        await usdt.write.approve([service.address, viem.parseUnits('1100', 6)], { account })
 
-        await help.write.takeSellOrder2([pair.address, viem.parseUnits('330', 6), viem.parseUnits('3', 18)], { account })
+        await service.write.takeSellOrder2([pair.address, viem.parseUnits('330', 6), viem.parseUnits('3', 18)], { account })
 
         await print()
     })
@@ -108,9 +108,9 @@ describe('Help list test', function () {
 
     it('testing takeBuyOrder2: take all', async function () {
         account = accounts[1].account
-        await weth.write.approve([help.address, viem.parseUnits('1000', 18)], { account })
+        await weth.write.approve([service.address, viem.parseUnits('1000', 18)], { account })
 
-        await help.write.takeBuyOrder2([pair.address, viem.parseUnits('10', 18), 1n], { account })
+        await service.write.takeBuyOrder2([pair.address, viem.parseUnits('10', 18), 1n], { account })
 
         await print()
     })
@@ -118,9 +118,9 @@ describe('Help list test', function () {
 
     it('testing takeSellOrder2: take all', async function () {
         account = accounts[2].account
-        await usdt.write.approve([help.address, viem.parseUnits('1100', 6)], { account })
+        await usdt.write.approve([service.address, viem.parseUnits('1100', 6)], { account })
 
-        await help.write.takeSellOrder2([pair.address, viem.parseUnits('200', 6), 1n], { account })
+        await service.write.takeSellOrder2([pair.address, viem.parseUnits('200', 6), 1n], { account })
 
         await print()
     })

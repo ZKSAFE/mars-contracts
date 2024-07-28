@@ -10,7 +10,7 @@ contract MarsPair {
     uint8 public immutable fee; //100 means 1%
     address public immutable feeTo;
 
-    uint48 public lastOrderId = 0;
+    uint48 public count = 0;
 
 
     struct Order {
@@ -50,18 +50,18 @@ contract MarsPair {
 
      ///////////////Buy Order////////////
 
-    function makeBuyOrder(uint token1In, uint token0Out, uint48 beforeOrderId) public returns (uint48 newOrderId) {
+    function makeBuyOrder(uint token1In, uint token0Out, uint48 beforeOrderId) public returns (uint48) {
         require(token1In > 0, "token1In amount cannot be 0");
         require(token0Out > 0, "token0Out amount cannot be 0");
         token1.transferFrom(msg.sender, address(this), token1In);
 
-        newOrderId = ++lastOrderId;
+        ++count;
 
         //if buyOrders is empty
         if (topBuyOrderId == 0) {
-            buyOrders[newOrderId] = Order(0, 0, msg.sender, token1In, token0Out, 0);
-            topBuyOrderId = newOrderId;
-            return newOrderId;
+            buyOrders[count] = Order(0, 0, msg.sender, token1In, token0Out, 0);
+            topBuyOrderId = count;
+            return count;
         }
 
         //if newOrder is the new topOrder
@@ -69,34 +69,34 @@ contract MarsPair {
             Order storage topOrder = buyOrders[topBuyOrderId];
             require(topOrder.amountOut * token1In > topOrder.amountIn * token0Out, "your price must > topOrder");
 
-            topOrder.beforeOrderId = newOrderId;
-            buyOrders[newOrderId] = Order(0, topBuyOrderId, msg.sender, token1In, token0Out, 0);
-            topBuyOrderId = newOrderId;
-            return newOrderId;
+            topOrder.beforeOrderId = count;
+            buyOrders[count] = Order(0, topBuyOrderId, msg.sender, token1In, token0Out, 0);
+            topBuyOrderId = count;
+            return count;
         }
 
         Order storage beforeOrder = buyOrders[beforeOrderId];
-        require(beforeOrder.owner != address(0), "beforeOrder is not exist");
+        require(beforeOrder.amountIn != 0, "beforeOrder is not exist");
         require(beforeOrder.beforeOrderId != type(uint48).max, "beforeOrder is removed(done)");
         require(beforeOrder.amountOut * token1In <= beforeOrder.amountIn * token0Out, "your price must <= beforeOrder");
         
         //if newOrder is the new lastOrder
         if (beforeOrder.afterOrderId == 0) {
-            beforeOrder.afterOrderId = newOrderId;
-            buyOrders[newOrderId] = Order(beforeOrderId, 0, msg.sender, token1In, token0Out, 0);
-            return newOrderId;
+            beforeOrder.afterOrderId = count;
+            buyOrders[count] = Order(beforeOrderId, 0, msg.sender, token1In, token0Out, 0);
+            return count;
         }
 
         //if beforeOrder and afterOrder both exist
         Order storage afterOrder = buyOrders[beforeOrder.afterOrderId];
-        require(afterOrder.owner != address(0), "afterOrder is not exist");
+        require(afterOrder.amountIn != 0, "afterOrder is not exist");
         require(afterOrder.beforeOrderId != type(uint48).max, "afterOrder is removed(done)");
         require(afterOrder.amountOut * token1In > afterOrder.amountIn * token0Out, "your price must > afterOrder");
 
-        buyOrders[newOrderId] = Order(beforeOrderId, beforeOrder.afterOrderId, msg.sender, token1In, token0Out, 0);
-        beforeOrder.afterOrderId = newOrderId;
-        afterOrder.beforeOrderId = newOrderId;
-        return newOrderId;
+        buyOrders[count] = Order(beforeOrderId, beforeOrder.afterOrderId, msg.sender, token1In, token0Out, 0);
+        beforeOrder.afterOrderId = count;
+        afterOrder.beforeOrderId = count;
+        return count;
     }
 
     function takeBuyOrder(uint token0In, uint token1Want) public returns (uint token0Pay, uint token1Gain, uint token0Fee) {
@@ -179,24 +179,25 @@ contract MarsPair {
         Order storage order = buyOrders[orderId];
         require(order.owner == msg.sender, "you are not owner of the order");
         require(order.beforeOrderId != type(uint48).max, "the order is already removed(done)");
+        require(newOwner != address(0), "newOwner can't be address(0)");
 
         order.owner = newOwner;
     }
 
     ///////////////Sell Order////////////
 
-    function makeSellOrder(uint token0In, uint token1Out, uint48 beforeOrderId) public returns (uint48 newOrderId) {
+    function makeSellOrder(uint token0In, uint token1Out, uint48 beforeOrderId) public returns (uint48) {
         require(token0In > 0, "token0In amount cannot be 0");
         require(token1Out > 0, "token1Out amount cannot be 0");
         token0.transferFrom(msg.sender, address(this), token0In);
 
-        newOrderId = ++lastOrderId;
+        ++count;
 
         //if sellOrders is empty
         if (topSellOrderId == 0) {
-            sellOrders[newOrderId] = Order(0, 0, msg.sender, token0In, token1Out, 0);
-            topSellOrderId = newOrderId;
-            return newOrderId;
+            sellOrders[count] = Order(0, 0, msg.sender, token0In, token1Out, 0);
+            topSellOrderId = count;
+            return count;
         }
 
         //if newOrder is the new topOrder
@@ -204,34 +205,34 @@ contract MarsPair {
             Order storage topOrder = sellOrders[topSellOrderId];
             require(topOrder.amountOut * token0In > topOrder.amountIn * token1Out, "your price must < topOrder");
 
-            topOrder.beforeOrderId = newOrderId;
-            sellOrders[newOrderId] = Order(0, topSellOrderId, msg.sender, token0In, token1Out, 0);
-            topSellOrderId = newOrderId;
-            return newOrderId;
+            topOrder.beforeOrderId = count;
+            sellOrders[count] = Order(0, topSellOrderId, msg.sender, token0In, token1Out, 0);
+            topSellOrderId = count;
+            return count;
         }
 
         Order storage beforeOrder = sellOrders[beforeOrderId];
-        require(beforeOrder.owner != address(0), "beforeOrder is not exist");
+        require(beforeOrder.amountIn != 0, "beforeOrder is not exist");
         require(beforeOrder.beforeOrderId != type(uint48).max, "beforeOrder is removed(done)");
         require(beforeOrder.amountOut * token0In <= beforeOrder.amountIn * token1Out, "your price must >= beforeOrder");
         
         //if newOrder is the new lastOrder
         if (beforeOrder.afterOrderId == 0) {
-            beforeOrder.afterOrderId = newOrderId;
-            sellOrders[newOrderId] = Order(beforeOrderId, 0, msg.sender, token0In, token1Out, 0);
-            return newOrderId;
+            beforeOrder.afterOrderId = count;
+            sellOrders[count] = Order(beforeOrderId, 0, msg.sender, token0In, token1Out, 0);
+            return count;
         }
 
         //if beforeOrder and afterOrder both exist
         Order storage afterOrder = sellOrders[beforeOrder.afterOrderId];
-        require(afterOrder.owner != address(0), "afterOrder is not exist");
+        require(afterOrder.amountIn != 0, "afterOrder is not exist");
         require(afterOrder.beforeOrderId != type(uint48).max, "afterOrder is removed(done)");
         require(afterOrder.amountOut * token0In > afterOrder.amountIn * token1Out, "your price must < afterOrder");
 
-        sellOrders[newOrderId] = Order(beforeOrderId, beforeOrder.afterOrderId, msg.sender, token0In, token1Out, 0);
-        beforeOrder.afterOrderId = newOrderId;
-        afterOrder.beforeOrderId = newOrderId;
-        return newOrderId;
+        sellOrders[count] = Order(beforeOrderId, beforeOrder.afterOrderId, msg.sender, token0In, token1Out, 0);
+        beforeOrder.afterOrderId = count;
+        afterOrder.beforeOrderId = count;
+        return count;
     }
 
     function takeSellOrder(uint token1In, uint token0Want) public returns (uint token1Pay, uint token0Gain, uint token1Fee) {

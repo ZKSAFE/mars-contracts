@@ -3,14 +3,14 @@ import * as viem from 'viem'
 import { expect } from "chai"
 
 
-describe('Help list test', function () {
+describe('Service list test', function () {
 
     let accounts: any
     let account: any
     let publicClient: any
     let weth: any
     let usdt: any
-    let help: any
+    let service: any
     let pair: any
 
     before(async function () {
@@ -27,8 +27,8 @@ describe('Help list test', function () {
         await usdt.write.setDecimals([6])
         await usdt.write.mint([accounts[2].account.address, viem.parseUnits('1000', 6)])
 
-        help = await hre.viem.deployContract('MarsHelp', [])
-        console.log('MarsHelp deployed:', help.address)
+        service = await hre.viem.deployContract('MarsService', [])
+        console.log('MarsService deployed:', service.address)
 
         pair = await hre.viem.deployContract('MarsPair', [weth.address, usdt.address, 100])
         console.log('pair deployed:', pair.address)
@@ -37,24 +37,23 @@ describe('Help list test', function () {
 
     it('testing makeBuyOrder', async function () {
         account = accounts[2].account
-        await usdt.write.approve([help.address, viem.parseUnits('1000', 6)], { account })
+        await usdt.write.approve([service.address, viem.parseUnits('1000', 6)], { account })
 
         for (let i = 0; i < 100; i++) {
-            let args = [pair.address, viem.parseUnits((10  * Math.random()).toString(), 6), viem.parseUnits('1', 18)]
+            let args = [pair.address, viem.parseUnits((10  * Math.random()).toString(), 6), viem.parseUnits('1', 18), 0]
             let gas = await publicClient.estimateContractGas({
-                address: help.address,
-                abi: help.abi,
+                address: service.address,
+                abi: service.abi,
                 functionName: 'makeBuyOrder',
                 args: args,
                 account
             })
             console.log('estimateContractGas:', gas)
 
-            await help.write.makeBuyOrder(args, { account }) 
+            await service.write.makeBuyOrder(args, { account }) 
         }
 
-        let topBuyOrderId = await pair.read.topBuyOrderId()
-        let buyOrders = await help.read.getBuyList([pair.address, topBuyOrderId, 100n])
+        let buyOrders = await service.read.getBuyList([pair.address, 0, 100n])
 
         let minAmountIn = Number.MAX_SAFE_INTEGER
         for (let order of buyOrders) {
@@ -62,35 +61,43 @@ describe('Help list test', function () {
             expect(Number(order.amountIn)).to.lessThan(minAmountIn)
             minAmountIn = Number(order.amountIn)
         }
+
     })
 
 
     it('testing makeSellOrder', async function () {
         account = accounts[1].account
-        await weth.write.approve([help.address, viem.parseUnits('1000', 18)], { account })
+        await weth.write.approve([service.address, viem.parseUnits('1000', 18)], { account })
 
         for (let i = 0; i < 100; i++) {
-            let args = [pair.address, viem.parseUnits('1', 18), viem.parseUnits((10  * Math.random()).toString(), 6)]
+            let args = [pair.address, viem.parseUnits('1', 18), viem.parseUnits((10  * Math.random()).toString(), 6), 0]
             let gas = await publicClient.estimateContractGas({
-                address: help.address,
-                abi: help.abi,
+                address: service.address,
+                abi: service.abi,
                 functionName: 'makeSellOrder',
                 args: args,
                 account
             })
             console.log('estimateContractGas:', gas)
 
-            await help.write.makeSellOrder(args, { account }) 
+            await service.write.makeSellOrder(args, { account }) 
         }
 
-        let topSellOrderId = await pair.read.topSellOrderId()
-        let sellOrders = await help.read.getSellList([pair.address, topSellOrderId, 100n])
+        let sellOrders = await service.read.getSellList([pair.address, 0, 100n])
 
         let maxAmountOut = 0
         for (let order of sellOrders) {
             // console.log(order.amountOut)
             expect(Number(order.amountOut)).to.be.above(maxAmountOut)
             maxAmountOut = Number(order.amountOut)
+        }
+    })
+
+
+    it('testing getUserOrders', async function () {
+        let orders = await service.read.getUserOrders([accounts[1].account.address, 0, 5])
+        for (let order of orders) {
+            console.log(order)
         }
     })
 
