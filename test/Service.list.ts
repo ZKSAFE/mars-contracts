@@ -30,7 +30,7 @@ describe('Service list test', function () {
         service = await hre.viem.deployContract('MarsService', [])
         console.log('MarsService deployed:', service.address)
 
-        pair = await hre.viem.deployContract('MarsPair', [weth.address, usdt.address, 100])
+        pair = await hre.viem.deployContract('MarsPair', [weth.address, usdt.address, 100, accounts[0].account.address])
         console.log('pair deployed:', pair.address)
     })
 

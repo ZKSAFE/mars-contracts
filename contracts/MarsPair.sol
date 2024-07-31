@@ -33,11 +33,11 @@ contract MarsPair {
     uint48 public topSellOrderId; //0:sellOrders is empty
 
 
-    constructor(address token0Addr, address token1Addr, uint8 _fee) {
+    constructor(address token0Addr, address token1Addr, uint8 _fee, address _feeTo) {
         token0 = IERC20(token0Addr);
         token1 = IERC20(token1Addr);
         fee = _fee;
-        feeTo = msg.sender;
+        feeTo = _feeTo;
     }
 
     function getBuyOrder(uint48 orderId) public view returns (Order memory) {
@@ -46,6 +46,16 @@ contract MarsPair {
 
     function getSellOrder(uint48 orderId) public view returns (Order memory) {
         return sellOrders[orderId];
+    }
+
+    function isBuy(uint48 orderId) public view returns (bool) {
+        if (buyOrders[orderId].amountIn > 0) {
+            return true;
+        }
+        if (sellOrders[orderId].amountIn > 0) {
+            return false;
+        }
+        revert("isBuy: orderId error");
     }
 
     ///////////////Buy Order////////////
@@ -149,10 +159,13 @@ contract MarsPair {
         token0Pay = token0In - takerToken0Left;
         require(token0Pay > 0, "no deal");
 
-        token0Fee = token0Pay * uint112(fee) / 10000;
-        if (token0Fee > 0) {
-            token0.transferFrom(msg.sender, feeTo, uint(token0Fee));
-        }
+        //if msg.sender is feeTo, fee is 0
+        if (msg.sender != feeTo) {
+            token0Fee = token0Pay * uint112(fee) / 10000;
+            if (token0Fee > 0) {
+                token0.transferFrom(msg.sender, feeTo, uint(token0Fee));
+            }
+        } 
         if (takerToken0Left > 0) {
             token0.transfer(msg.sender, uint(takerToken0Left));
         }
@@ -290,9 +303,12 @@ contract MarsPair {
         token1Pay = token1In - takerToken1Left;
         require(token1Pay > 0, "no deal");
 
-        token1Fee = token1Pay * uint112(fee) / 10000;
-        if (token1Fee > 0) {
-            token1.transferFrom(msg.sender, feeTo, uint(token1Fee));
+        //if msg.sender is feeTo, fee is 0
+        if (msg.sender != feeTo) {
+            token1Fee = token1Pay * uint112(fee) / 10000;
+            if (token1Fee > 0) {
+                token1.transferFrom(msg.sender, feeTo, uint(token1Fee));
+            }
         }
         if (takerToken1Left > 0) {
             token1.transfer(msg.sender, uint(takerToken1Left));
