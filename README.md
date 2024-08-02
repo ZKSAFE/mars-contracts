@@ -1,13 +1,25 @@
-# Sample Hardhat Project
+# Mars Project
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
+Mars是为高性能EVM公链设计的订单簿DEX，我们希望达到以下目标：
 
-Try running some of the following tasks:
+1. 无后端，完全利用公链的处理能力
+2. 用户操作逻辑跟CEX保持一致
+3. 最耗gas的操作也能在接受范围内
+4. 作为基础协议，对DEFI搭积木有很好的支持
 
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.ts
-```
+
+### 核心原理
+    
+链上的订单列表始终保持按价格排序，使用LinkedList数据结构保存订单，插入和移除的效率更高。对每个订单的数据结构使用storage slot对齐，仅占用两个slot，gas大幅降低。最耗gas的操作是吃单，每吃一个单，需要改变该订单的状态以及把token转给挂单的用户，所以吃单越多gas越高。目前吃100个挂单，gas是1818463，满足日常使用。
+
+MarsPair.sol 是核心，负责算法的实现 <br>
+MarsService.sol 是外围，负责对接前端
+
+现在在开发v2版本，尝试把买和卖拆开，把一个交易对通过部署两个 MonoTrade.sol 合约来实现，这样代码量可以减少一半。接口更少，更利于DEFI拓展。
+
+
+### 扩展
+
+Mars 设计为基础协议，无中心化管理。为了维持这套系统的运转，挂单免手续费，吃单收手续费，挂单的用户可以通过 MarsMining.sol 把 MarsToken 挖出来，交易即挖矿，MarsToken 挖出的过程实际上是把手续费拿来购买 MarsToken 给用户，有利于 MarsToken 的上涨。
+
+为了让更多合作方参与到 Mars 的生态建设，Mars 的手续费是全部返还。作为 Mars 的代理商，你可以拿到全部的手续费，然后你再跟你的用户分成。如果你自己去部署一套 Dex，拿到的手续费跟接入 Mars 是一样的，还不如跟 Mars 共享流动性。
