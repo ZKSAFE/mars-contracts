@@ -1,25 +1,23 @@
 # Mars Project
 
-Mars是为高性能EVM公链设计的订单簿DEX，我们希望达到以下目标：
+Mars is an order book DEX designed for high-performance EVM public chains. We aim to achieve the following goals:
 
-1. 无后端，完全利用公链的处理能力
-2. 用户操作逻辑跟CEX保持一致
-3. 最耗gas的操作也能在接受范围内
-4. 作为基础协议，对DEFI搭积木有很好的支持
+1. No backend, fully utilizing the processing power of the public chain.
+2. User operation logic consistent with centralized exchanges (CEX).
+3. The gas costs of the most resource-intensive operations remain within acceptable limits.
+4. As a foundational protocol, it provides excellent support for building blocks in DeFi.
 
+### Core Principles
 
-### 核心原理
-    
-链上的订单列表始终保持按价格排序，使用LinkedList数据结构保存订单，插入和移除的效率更高。对每个订单的数据结构使用storage slot对齐，仅占用两个slot，gas大幅降低。最耗gas的操作是吃单，每吃一个单，需要改变该订单的状态以及把token转给挂单的用户，所以吃单越多gas越高。目前吃100个挂单，gas是1818463，满足日常使用。
+The on-chain order list is always sorted by price, using a LinkedList data structure to store orders, which enhances the efficiency of insertion and removal operations. Each order's data structure is aligned to storage slots, occupying only two slots, which significantly reduces gas costs. The most gas-intensive operation is taking orders. Each time an order is taken, it requires changing the order's status and transferring tokens to the user who made the order. Thus, the more orders taken, the higher the gas cost. Currently, taking 100 orders incurs a gas cost of 1,818,463, which is sufficient for daily use.
 
-MarsPair.sol 是核心，负责算法的实现 <br>
-MarsService.sol 是外围，负责对接前端
+**MarsPair.sol** is the core contract responsible for algorithm implementation. <br>
+**MarsService.sol** is the peripheral contract responsible for integration with the frontend.
 
-现在在开发v2版本，尝试把买和卖拆开，把一个交易对通过部署两个 MonoTrade.sol 合约来实现，这样代码量可以减少一半。接口更少，更利于DEFI拓展。
+We are currently developing version 2, which attempts to separate buying and selling by deploying two MonoTrade.sol contracts for each trading pair, effectively reducing the amount of code by half. With fewer interfaces, this approach is more conducive to DeFi expansion.
 
+### Expansion
 
-### 扩展
+Mars is designed as a foundational protocol with no centralized privilege. To maintain the operation of this system, order maken is fee-free, while taking orders incurs a fee. Users who make orders can mine MarsTokens through MarsMining.sol; trading is mining. The process of mining MarsTokens effectively uses the trading fees to purchase MarsTokens for users, contributing to the increase in MarsToken value.
 
-Mars 设计为基础协议，无中心化管理。为了维持这套系统的运转，挂单免手续费，吃单收手续费，挂单的用户可以通过 MarsMining.sol 把 MarsToken 挖出来，交易即挖矿，MarsToken 挖出的过程实际上是把手续费拿来购买 MarsToken 给用户，有利于 MarsToken 的上涨。
-
-为了让更多合作方参与到 Mars 的生态建设，Mars 的手续费是全部返还。作为 Mars 的代理商，你可以拿到全部的手续费，然后你再跟你的用户分成。如果你自己去部署一套 Dex，拿到的手续费跟接入 Mars 是一样的，还不如跟 Mars 共享流动性。
+In order to encourage more partners to participate in the construction of the Mars ecosystem, all trading fees from Mars are returned. As an agent of Mars, you can receive the total trading fees, which you can then share with your users. If you deploy your own DEX, the fees you obtain will be the same as those from integrating with Mars. It is more advantageous to share liquidity with Mars.
