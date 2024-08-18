@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../help/TransferHelper.sol";
 import "hardhat/console.sol";
 
 /**
@@ -9,9 +10,10 @@ import "hardhat/console.sol";
  * 2 MonoTrades can be combined into a trading pair
  */
 contract MonoTrade {
+    using TransferHelper for address;
 
-    IERC20 public immutable token0;
-    IERC20 public immutable token1;
+    address public immutable token0;
+    address public immutable token1;
     uint8 public immutable fee; //100 means 1%
     address public immutable feeTo;
 
@@ -34,9 +36,9 @@ contract MonoTrade {
     mapping (uint48 => Order) public orders; //orderId => Order
     uint48 public topOrderId; //0:orders is empty
 
-    constructor(address token0Addr, address token1Addr, uint8 _fee, address _feeTo) {
-        token0 = IERC20(token0Addr);
-        token1 = IERC20(token1Addr);
+    constructor(address _token0, address _token1, uint8 _fee, address _feeTo) {
+        token0 = _token0;
+        token1 = _token1;
         fee = _fee;
         feeTo = _feeTo;
     }
@@ -48,7 +50,7 @@ contract MonoTrade {
     function makeOrder(uint112 token1In, uint112 token0Out, uint48 beforeOrderId) public returns (uint48) {
         require(token1In > 0, "MonoTrade: makeOrder:: token1In amount cannot be 0");
         require(token0Out > 0, "MonoTrade: makeOrder:: token0Out amount cannot be 0");
-        token1.transferFrom(msg.sender, address(this), uint(token1In));
+        token1.safeTransferFrom(msg.sender, address(this), uint(token1In));
 
         ++count;
 
@@ -94,16 +96,16 @@ contract MonoTrade {
         return count;
     }
 
-    function takeOrder(uint112 token0In, uint112 token1Want) public returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
+    function takeOrder(uint112 token0In, uint112 token1ForPrice) public returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
         require(topOrderId != 0, "MonoTrade: takeOrder:: orders is empty");
 
-        token0.transferFrom(msg.sender, address(this), uint(token0In));
+        token0.safeTransferFrom(msg.sender, address(this), uint(token0In));
 
         uint112 takerToken0Left = token0In;
 
         while (topOrderId != 0) {
             Order storage topOrder = orders[topOrderId];
-            if (uint(token0In) * topOrder.amountIn < uint(token1Want) * topOrder.amountOut ) {
+            if (uint(token0In) * topOrder.amountIn < uint(token1ForPrice) * topOrder.amountOut ) {
                 break; //price not good
             }
             uint112 amountInUsed = uint112(uint(topOrder.progress) * topOrder.amountIn / type(uint32).max);
@@ -116,7 +118,7 @@ contract MonoTrade {
                 //topOrder is done
                 _removeOrderLink(topOrder);
                 topOrder.progress = type(uint32).max;
-                token0.transfer(topOrder.owner, uint(topOrderToken0Left));
+                token0.safeTransfer(topOrder.owner, uint(topOrderToken0Left));
                 topOrder.beforeOrderId = type(uint48).max;
 
                 // console.log("done, amountOut:", topOrderToken0Left);
@@ -130,7 +132,7 @@ contract MonoTrade {
                 amountInUsed += deltaToken1Gain;
                 topOrder.progress = uint32(amountInUsed * type(uint32).max / topOrder.amountIn) + 1;
                 // console.log("partly take buyOrder, amountInUsed:", amountInUsed, topOrder.progress, takerToken0Left);
-                token0.transfer(topOrder.owner, takerToken0Left);
+                token0.safeTransfer(topOrder.owner, takerToken0Left);
 
                 // console.log("partly done, takerToken0Left:", takerToken0Left);
                 takerToken0Left = 0;
@@ -145,14 +147,14 @@ contract MonoTrade {
         if (msg.sender != feeTo) {
             token0Fee = token0Pay * uint112(fee) / 10000;
             if (token0Fee > 0) {
-                token0.transferFrom(msg.sender, feeTo, uint(token0Fee));
+                token0.safeTransferFrom(msg.sender, feeTo, uint(token0Fee));
             }
         } 
         if (takerToken0Left > 0) {
-            token0.transfer(msg.sender, uint(takerToken0Left));
+            token0.safeTransfer(msg.sender, uint(takerToken0Left));
         }
         if (token1Gain > 0) {
-            token1.transfer(msg.sender, uint(token1Gain));
+            token1.safeTransfer(msg.sender, uint(token1Gain));
         }
     }
 
@@ -171,7 +173,7 @@ contract MonoTrade {
         // console.log("cancelOrder amountInUsed:", amountInUsed, order.progress);
         token1Left = order.amountIn - amountInUsed;
         if (token1Left > 0) {
-            token1.transfer(order.owner, uint(token1Left));
+            token1.safeTransfer(order.owner, uint(token1Left));
         }
     }
 

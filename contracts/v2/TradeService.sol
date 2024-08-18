@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../help/TransferHelper.sol";
 import "./MonoTrade.sol";
 import "hardhat/console.sol";
 
 contract TradeService {
+    using TransferHelper for address;
 
     uint8 public constant fee = 100;
     address public immutable feeTo;
 
     //trades[token0][token1] => MonoTrade address 
-    mapping(address => mapping(address => address)) public trades;
+    mapping(address => mapping(address => address)) trades;
 
     event PairCreated(address indexed tokenA, address indexed tokenB, address tradeAB, address tradeBA);
 
@@ -26,19 +29,31 @@ contract TradeService {
         require(trades[tokenB][tokenA] == address(0), "TradeService: createPair:: tradeBA already exist");
 
         bytes32 salt = keccak256(abi.encodePacked(tokenA, tokenB));
-        MonoTrade pair = new MonoTrade{salt: salt}(tokenA, tokenB, fee, feeTo);
-        tradeAB = address(pair);
+        tradeAB = address(new MonoTrade{salt: salt}(tokenA, tokenB, fee, feeTo));
         trades[tokenA][tokenB] = tradeAB;
 
         salt = keccak256(abi.encodePacked(tokenB, tokenA));
-        pair = new MonoTrade{salt: salt}(tokenB, tokenA, fee, feeTo);
-        tradeBA = address(pair);
+        tradeBA = address(new MonoTrade{salt: salt}(tokenB, tokenA, fee, feeTo));
         trades[tokenB][tokenA] = tradeBA;
+
+        refreshApprove(tokenA, tokenB);
 
         emit PairCreated(tokenA, tokenB, tradeAB, tradeBA);
     }
 
-    function computePairAddr(address token0, address token1) public view returns (address) {
+    function refreshApprove(address tokenA, address tokenB) public {
+        address tradeAB = trades[tokenA][tokenB];
+        require(tradeAB != address(0), "TradeService: refreshApprove:: tradeAB not exist");
+        tokenA.safeApprove(tradeAB, type(uint).max);
+        tokenB.safeApprove(tradeAB, type(uint).max);
+
+        address tradeBA = trades[tokenB][tokenA];
+        require(tradeBA != address(0), "TradeService: refreshApprove:: tradeAB not exist");
+        tokenA.safeApprove(tradeBA, type(uint).max);
+        tokenB.safeApprove(tradeBA, type(uint).max);
+    }
+
+    function computeTradeAddr(address token0, address token1) public view returns (address) {
         bytes32 salt = keccak256(abi.encodePacked(token0, token1));
         address predictedAddr = address(
             uint160(
@@ -128,20 +143,22 @@ contract TradeService {
         return result;
     }
 
-    function getUserOrders(address user, uint48 startIndex, uint48 num) external view returns (UserOrder[] memory) {
+    function getUserOrders(address user, uint48 lastIndex, uint48 num) external view returns (UserOrder[] memory) {
         UserOrder[] memory orders = new UserOrder[](num);
 
-        if (startIndex == 0) {
-            startIndex = userOrdersLength[user];
+        if (lastIndex == 0) {
+            lastIndex = userOrdersLength[user];
         }
-        if (startIndex == 0) {
+        if (lastIndex == 0) {
             return orders;
         }
 
-        for (uint48 index = startIndex; startIndex - index < num; --index) {
+        for (uint48 index = lastIndex; lastIndex - index < num && index > 0; --index) {
+            console.log("loop:", index, lastIndex, num);
             OrderCreate memory orderCreate = orderCreates[_encodeAddressUint48(user, index)];
+            console.log("orderCreate.orderId:", orderCreate.orderId);
             MonoTrade.Order memory tradeOrder = MonoTrade(orderCreate.trade).getOrder(orderCreate.orderId);
-            orders[startIndex - index] = _combineUserOrder(orderCreate, tradeOrder);
+            orders[lastIndex - index] = _combineUserOrder(orderCreate, tradeOrder);
         }
         return orders;
     }
@@ -158,8 +175,8 @@ contract TradeService {
     function _combineUserOrder(OrderCreate memory orderCreate, MonoTrade.Order memory tradeOrder) internal view returns (UserOrder memory) {
         return UserOrder(
             orderCreate.trade,
-            address(MonoTrade(orderCreate.trade).token0()),
-            address(MonoTrade(orderCreate.trade).token1()),
+            MonoTrade(orderCreate.trade).token0(),
+            MonoTrade(orderCreate.trade).token1(),
             orderCreate.orderId,
             orderCreate.createTime,
             tradeOrder.owner,
@@ -217,11 +234,8 @@ contract TradeService {
     function makeOrder(address tradeAddr, uint112 token1In, uint112 token0Out, uint48 beforeOrderId) external returns (uint48 newOrderId) {
         MonoTrade trade = MonoTrade(tradeAddr);
 
-        IERC20 token1 = trade.token1();
-        token1.transferFrom(msg.sender, address(this), token1In);
-        if (token1.allowance(address(this), tradeAddr) < token1In) {
-            token1.approve(tradeAddr, type(uint).max);
-        }
+        address token1 = trade.token1();
+        token1.safeTransferFrom(msg.sender, address(this), token1In);
 
         uint48 tradeBeforeOrderId = _findBeforeOrderIdInOrderList(tradeAddr, token1In, token0Out, beforeOrderId);
         newOrderId = trade.makeOrder(token1In, token0Out, tradeBeforeOrderId);
@@ -233,27 +247,25 @@ contract TradeService {
     //Experience like CEX, if partly done, the left makes sell order
     function takeOrder(address tradeAddr, uint112 token0In, uint112 token1Want) external returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
         MonoTrade trade = MonoTrade(tradeAddr);
-        IERC20 token0 = trade.token0();
-        IERC20 token1 = trade.token1();
+        address token0 = trade.token0();
+        address token1 = trade.token1();
         
         uint112 fullFee = token0In * trade.fee() / 10000;
         uint112 token0InWithFee = fullFee + token0In;
-        token0.transferFrom(msg.sender, address(this), token0InWithFee);
-        if (token0.allowance(address(this), tradeAddr) < token0InWithFee) {
-            token0.approve(tradeAddr, type(uint).max);
-        }
+        token0.safeTransferFrom(msg.sender, address(this), token0InWithFee);
 
         (token0Pay, token1Gain, token0Fee) = trade.takeOrder(token0In, token1Want);
-        token1.transfer(msg.sender, token1Gain);
+        token1.safeTransfer(msg.sender, token1Gain);
         if (fullFee > token0Fee) {
-            token0.transfer(msg.sender, fullFee - token0Fee); //give back
+            token0.safeTransfer(msg.sender, fullFee - token0Fee); //give back
         }
         
         //make sell order
         if (token0In > token0Pay) {
             uint112 newToken0In = token0In - token0Pay;
             uint112 newToken1Want = newToken0In * token1Want / token0In;
-            tradeAddr = trades[address(token1)][address(token0)];
+            tradeAddr = trades[token1][token0];
+            trade = MonoTrade(tradeAddr);
             uint48 beforeOrderId = _findBeforeOrderIdInOrderList(tradeAddr, newToken0In, newToken1Want, 0);
             uint48 newOrderId = trade.makeOrder(newToken0In, newToken1Want, beforeOrderId);
             trade.changeOrderOwner(newOrderId, msg.sender);
@@ -263,24 +275,21 @@ contract TradeService {
     //Experience like CEX, if partly done, the left give back
     function takeOrder2(address tradeAddr, uint112 token0In, uint112 token1Want) external returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
         MonoTrade trade = MonoTrade(tradeAddr);
-        IERC20 token0 = trade.token0();
-        IERC20 token1 = trade.token1();
+        address token0 = trade.token0();
+        address token1 = trade.token1();
         
         uint112 fullFee = token0In * trade.fee() / 10000;
         uint112 token0InWithFee = fullFee + token0In;
-        token0.transferFrom(msg.sender, address(this), token0InWithFee);
-        if (token0.allowance(address(this), tradeAddr) < token0InWithFee) {
-            token0.approve(tradeAddr, type(uint).max);
-        }
+        token0.safeTransferFrom(msg.sender, address(this), token0InWithFee);
 
         (token0Pay, token1Gain, token0Fee) = trade.takeOrder(token0In, token1Want);
-        token1.transfer(msg.sender, token1Gain);
+        token1.safeTransfer(msg.sender, token1Gain);
         
         //give back
         if (token0In > token0Pay) {
             uint112 token0Left = token0In - token0Pay;
             uint112 feeBack = fullFee - token0Fee;
-            token0.transfer(msg.sender, token0Left + feeBack); //give back
+            token0.safeTransfer(msg.sender, token0Left + feeBack); //give back
         }
     }
 }
