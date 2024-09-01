@@ -2,15 +2,16 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "../help/TransferHelper.sol";
 import "./MonoTrade.sol";
 import "hardhat/console.sol";
 
-contract TradeService {
+contract TradeService is Ownable2Step {
     using TransferHelper for address;
 
     uint8 public constant fee = 100;
-    address public immutable feeTo;
+    address public feeTo;
 
     //trades[token0][token1] => MonoTrade address 
     mapping(address => mapping(address => address)) trades;
@@ -19,6 +20,10 @@ contract TradeService {
 
     constructor() {
         feeTo = msg.sender;
+    }
+
+    function changeFeeTo(address _feeTo) public onlyOwner {
+        feeTo = _feeTo;
     }
 
     function createPair(address tokenA, address tokenB) external returns (address tradeAB, address tradeBA) {
@@ -95,12 +100,12 @@ contract TradeService {
 
     //UserOrder combine OrderCreate and MarsPair.Order
     struct UserOrder {
+        uint48 index;
         address trade;
         address token0;
         address token1;
         uint48 orderId;
         uint32 createTime;
-        address owner;
         uint112 amountIn;
         uint112 amountOut;
         uint32 progress;
@@ -118,7 +123,7 @@ contract TradeService {
     mapping (bytes26 => OrderCreate) orderCreates;
 
     //store the length of user's order list, 
-    mapping (address => uint48) userOrdersLength;
+    mapping (address => uint48) public userOrdersLength;
 
 
     ////////////////////////
@@ -154,11 +159,11 @@ contract TradeService {
         }
 
         for (uint48 index = lastIndex; lastIndex - index < num && index > 0; --index) {
-            console.log("loop:", index, lastIndex, num);
+            // console.log("loop:", index, lastIndex, num);
             OrderCreate memory orderCreate = orderCreates[_encodeAddressUint48(user, index)];
-            console.log("orderCreate.orderId:", orderCreate.orderId);
+            // console.log("orderCreate.orderId:", orderCreate.orderId);
             MonoTrade.Order memory tradeOrder = MonoTrade(orderCreate.trade).getOrder(orderCreate.orderId);
-            orders[lastIndex - index] = _combineUserOrder(orderCreate, tradeOrder);
+            orders[lastIndex - index] = _combineUserOrder(index, orderCreate, tradeOrder);
         }
         return orders;
     }
@@ -172,14 +177,14 @@ contract TradeService {
         u48 = uint48(uint208(b26));
     }
 
-    function _combineUserOrder(OrderCreate memory orderCreate, MonoTrade.Order memory tradeOrder) internal view returns (UserOrder memory) {
+    function _combineUserOrder(uint48 index, OrderCreate memory orderCreate, MonoTrade.Order memory tradeOrder) internal view returns (UserOrder memory) {
         return UserOrder(
+            index,
             orderCreate.trade,
             MonoTrade(orderCreate.trade).token0(),
             MonoTrade(orderCreate.trade).token1(),
             orderCreate.orderId,
             orderCreate.createTime,
-            tradeOrder.owner,
             tradeOrder.amountIn,
             tradeOrder.amountOut,
             tradeOrder.progress,
@@ -198,7 +203,7 @@ contract TradeService {
     /////// trading ///////
     ////////////////////////
 
-    function _findBeforeOrderIdInOrderList(address tradeAddr, uint112 token1In, uint112 token0Out, uint48 findFromId) view internal returns (uint48) {
+    function findBeforeOrderId(address tradeAddr, uint112 token1In, uint112 token0Out, uint48 findFromId) view public returns (uint48) {
         MonoTrade trade = MonoTrade(tradeAddr);
         uint48 id = trade.topOrderId();
 
@@ -237,7 +242,7 @@ contract TradeService {
         address token1 = trade.token1();
         token1.safeTransferFrom(msg.sender, address(this), token1In);
 
-        uint48 tradeBeforeOrderId = _findBeforeOrderIdInOrderList(tradeAddr, token1In, token0Out, beforeOrderId);
+        uint48 tradeBeforeOrderId = findBeforeOrderId(tradeAddr, token1In, token0Out, beforeOrderId);
         newOrderId = trade.makeOrder(token1In, token0Out, tradeBeforeOrderId);
         trade.changeOrderOwner(newOrderId, msg.sender);
 
@@ -266,7 +271,7 @@ contract TradeService {
             uint112 newToken1Want = newToken0In * token1Want / token0In;
             tradeAddr = trades[token1][token0];
             trade = MonoTrade(tradeAddr);
-            uint48 beforeOrderId = _findBeforeOrderIdInOrderList(tradeAddr, newToken0In, newToken1Want, 0);
+            uint48 beforeOrderId = findBeforeOrderId(tradeAddr, newToken0In, newToken1Want, 0);
             uint48 newOrderId = trade.makeOrder(newToken0In, newToken1Want, beforeOrderId);
             trade.changeOrderOwner(newOrderId, msg.sender);
         }

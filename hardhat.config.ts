@@ -50,6 +50,13 @@ const config: HardhatUserConfig = {
 				process.env.ETH_PK_1 as string,
 			]
 		},
+		op_sepolia: {
+			url: 'https://sepolia.optimism.io',
+			chainId: 11155420,
+			accounts: [
+				process.env.ETH_PK_1 as string,
+			]
+		},
 		arbitrumOne: {
 			url: 'https://arb-mainnet.g.alchemy.com/v2/KObwPy_MUfKJYvJIsLzhzLT3avv-PaEe',
 			chainId: 42161,
@@ -69,6 +76,13 @@ const config: HardhatUserConfig = {
 			chainId: 686868,
 			accounts: [
 				process.env.ETH_PK_9 as string,
+			]
+		},
+		linea_sepolia: {
+			url: 'https://linea-sepolia.infura.io/v3/',
+			chainId: 59141,
+			accounts: [
+				process.env.ETH_PK_1 as string,
 			]
 		}
 	},

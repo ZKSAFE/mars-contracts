@@ -61,7 +61,7 @@ describe('Service functions test', function () {
 
         let topOrderId = await trade_weth_usdt.read.topOrderId()
         let orders = await service.read.getOrderList([trade_weth_usdt.address, topOrderId, 5])
-        // console.log(orders)
+        console.log(orders)
 
         expect(orders[0].orderId).to.equal(2) //200
         expect(orders[1].orderId).to.equal(3) //150
@@ -173,8 +173,8 @@ describe('Service functions test', function () {
         expect(orders[0].amountOut).to.equal(viem.parseUnits('1.6', 18))
         expect(orders[1].amountOut).to.equal(viem.parseUnits('1', 18))
 
-        // let userOeders = await service.read.getUserOrders([accounts[1].account.address, 0, 6])
-        // console.log(userOeders)
+        let userOeders = await service.read.getUserOrders([accounts[1].account.address, 0, 6])
+        console.log(userOeders)
 
         await print()
     })

@@ -5,6 +5,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../help/TransferHelper.sol";
 import "hardhat/console.sol";
 
+interface IFeeTo {
+    function feeTo() external returns (address);
+}
+
 /**
  * @notice The trading direction is mono, send token1 in for making order, or sending token0 for taking order
  * 2 MonoTrades can be combined into a trading pair
@@ -143,11 +147,14 @@ contract MonoTrade {
         token0Pay = token0In - takerToken0Left;
         require(token0Pay > 0, "MonoTrade: takeOrder:: no deal");
 
+        //if feeTo is contract
+        address feeToAddr = feeTo.code.length > 0 ? IFeeTo(feeTo).feeTo() : feeTo;
+
         //if msg.sender is feeTo, fee is 0
-        if (msg.sender != feeTo) {
+        if (msg.sender != feeToAddr) {
             token0Fee = token0Pay * uint112(fee) / 10000;
             if (token0Fee > 0) {
-                token0.safeTransferFrom(msg.sender, feeTo, uint(token0Fee));
+                token0.safeTransferFrom(msg.sender, feeToAddr, uint(token0Fee));
             }
         } 
         if (takerToken0Left > 0) {

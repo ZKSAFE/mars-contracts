@@ -95,7 +95,7 @@ export interface IERC20Metadata$Type {
         },
         {
           "internalType": "uint256",
-          "name": "value",
+          "name": "amount",
           "type": "uint256"
         }
       ],
@@ -190,7 +190,7 @@ export interface IERC20Metadata$Type {
         },
         {
           "internalType": "uint256",
-          "name": "value",
+          "name": "amount",
           "type": "uint256"
         }
       ],
@@ -219,7 +219,7 @@ export interface IERC20Metadata$Type {
         },
         {
           "internalType": "uint256",
-          "name": "value",
+          "name": "amount",
           "type": "uint256"
         }
       ],

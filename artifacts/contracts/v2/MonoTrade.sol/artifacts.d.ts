@@ -5,11 +5,14 @@
 
 import "hardhat/types/artifacts";
 
+import { IFeeTo$Type } from "./IFeeTo";
 import { MonoTrade$Type } from "./MonoTrade";
 
 declare module "hardhat/types/artifacts" {
   interface ArtifactsMap {
+    ["IFeeTo"]: IFeeTo$Type;
     ["MonoTrade"]: MonoTrade$Type;
+    ["contracts/v2/MonoTrade.sol:IFeeTo"]: IFeeTo$Type;
     ["contracts/v2/MonoTrade.sol:MonoTrade"]: MonoTrade$Type;
   }
 }
