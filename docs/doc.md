@@ -105,6 +105,87 @@ args里把USDT_ADDR放前面，MEME_ADDR放后面，就得到token0是USDT、tok
 如果交易对没有创建，返回0x0000000000000000000000000000000000000000
 
 
+#### 查看MonoTrade的token信息
+推荐用multicall一次获取多个数据：
+
+```javascripts
+const tradeWagmi = {
+    address: USDT_MEME_ADDR,
+    abi: tradeJson.abi
+} as const
+
+let arr = await publicClient.multicall({
+    contracts: [
+        { ...tradeWagmi, functionName: 'token0' },
+        { ...tradeWagmi, functionName: 'token1' },
+        { ...tradeWagmi, functionName: 'fee' },
+    ]
+})
+console.log('trade info:', arr)
+```
+
+返回的数据如下：
+
+```javascripts
+trade info: [
+  {
+    result: '0xD6B0cD180639D9464f51A0ECb816A22ADd26f701',
+    status: 'success'
+  },
+  {
+    result: '0x89491dd50EdbEE8CaAE912cbA162a6b2C6aC69ce',
+    status: 'success'
+  },
+  { result: 100, status: 'success' }
+]
+```
+
+其中，arr[2].result是fee，100表示手续费是1%。
+
+arr[0].result是token0地址，arr[1].result是token1地址，继续获取这两个token的信息：
+
+```javascripts
+const token0Wagmi = {
+    address: arr[0].result,
+    abi: erc20Json.abi
+} as const
+
+const token1Wagmi = {
+    address: arr[1].result,
+    abi: erc20Json.abi
+} as const
+
+arr = await publicClient.multicall({
+    contracts: [
+        { ...token0Wagmi, functionName: 'name' },
+        { ...token0Wagmi, functionName: 'symbol' },
+        { ...token0Wagmi, functionName: 'decimals' },
+        { ...token0Wagmi, functionName: 'balanceOf', args:[account.address] },
+        { ...token1Wagmi, functionName: 'name' },
+        { ...token1Wagmi, functionName: 'symbol' },
+        { ...token1Wagmi, functionName: 'decimals' },
+        { ...token1Wagmi, functionName: 'balanceOf', args:[account.address] },
+    ]
+})
+console.log('token detail:', arr)
+```
+
+返回的数据格式如下：
+
+```javascripts
+token detail: [
+  { result: 'TEST USDT', status: 'success' },
+  { result: 'USDT', status: 'success' },
+  { result: 6, status: 'success' },
+  { result: 1999740000000n, status: 'success' },
+  { result: 'TEST MEME', status: 'success' },
+  { result: 'MEME', status: 'success' },
+  { result: 18, status: 'success' },
+  { result: 1999600000000000000000000n, status: 'success' }
+]
+```
+
+
 #### 查看挂单
 
 ```javascripts
@@ -203,3 +284,154 @@ userOrderArr: [
 orderId不是全局的，不同的MonoTrade可能有同样的orderId。
 
 isRemoved，如果完全成交了，那么订单自动移除，标记为true，或者订单被用户取消了，也会标记为true。
+
+
+### 写入合约
+在写入合约前，推荐使用publicClient.simulateContract来模拟写入，避免上链失败
+
+假设MEME的买入挂单如下：
+
+- 100USDT 买 100MEME（价格：$1.00）
+- 95USDT 买 100MEME（价格：$0.95）
+- 90USDT 买 100MEME（价格：¥0.90）
+
+这时候，挂一个$1.00的限价单卖出MEME，如果价格合适会立即跟第一个买单成交（或部分成交），吃完第一个买单，如果价格合适就会继续吃第二个，直到价格不合适，有两种处理方式：
+
+1. 把剩下的MEME按$1.00的价格挂出卖单，即限价单
+2. 把剩下的MEME返回给用户，即市价单
+
+#### 限价单
+挂一个$1.00的限价单卖出MEME，用120个MEME兑换120个USDT：
+
+```javascripts
+let token0In = viem.parseUnits('120', 18)
+let token1Want = viem.parseUnits('120', 6)
+
+let fee = 100n //read from contract
+let token0InWithFee = token0In * fee / 10000n + token0In
+let hash = await walletClient.writeContract({
+    address: MEME_ADDR,
+    abi: erc20Json.abi,
+    functionName: 'approve',
+    args: [SERVICE_ADDR, token0InWithFee],
+    account,
+})
+await publicClient.waitForTransactionReceipt({ hash })
+console.log('approve done')
+
+let sim = await publicClient.simulateContract({
+    address: SERVICE_ADDR,
+    abi: serviceJson.abi,
+    functionName: 'takeOrder',
+    args: [MEME_USDT_ADDR, token0In, token1Want],
+    account,
+})
+console.log('sim.result:', sim.result)
+
+hash = await walletClient.writeContract(sim.request)
+console.log('placeLimitOrder done')
+```
+
+第一步需要token授权：如果挂单转入的MEME立即成交，即吃单，需要额外支付1%的MEME作为手续费（1%这个数值从合约里读出），所以需要授权token0InWithFee个MEME。
+
+第二步模拟交易，返回的数据格式如下：
+
+```javascripts
+sim.result: [ 100000000000000000000n, 100000000n, 1000000000000000000n ]
+```
+
+这三个数值对应[ token0Pay, token1Gain, token0Fee ]，意思是：
+
+- token0Pay 转入的token0In，有多少立即成交了
+- token1Gain 立即成交了多少token1
+- token0Fee 额外的手续费
+
+可以看出，转入的120MEME，有100MEME用来吃单了，立即得到了100USDT，并且额外支付了1MEME作为手续费。
+
+#### 只挂单不吃单（省gas优化）
+如果挂的限价单价格匹配不到吃单，就会只挂单不吃单。但是，如果限价单的价格偏离太多，合约里面需要遍历几百个订单才找到合适的挂单位置，导致gas较高，有一个优化的办法，前端先找出这个位置，传给合约，合约不找只校验，就可以节省gas。
+
+```javascripts
+let token1In = viem.parseUnits('100', 18)
+let token0Want = viem.parseUnits('1000', 6)
+
+let hash = await walletClient.writeContract({
+    address: MEME_ADDR,
+    abi: erc20Json.abi,
+    functionName: 'approve',
+    args: [SERVICE_ADDR, token1In],
+    account,
+})
+await publicClient.waitForTransactionReceipt({ hash })
+console.log('approve done')
+
+let beforeOrderId = await publicClient.readContract({
+    address: SERVICE_ADDR,
+    abi: serviceJson.abi,
+    functionName: 'findBeforeOrderId',
+    args: [USDT_MEME_ADDR, token1In, token0Want, 0],
+    account,
+})
+console.log('beforeOrderId:', beforeOrderId)
+
+let sim = await publicClient.simulateContract({
+    address: SERVICE_ADDR,
+    abi: serviceJson.abi,
+    functionName: 'makeOrder',
+    args: [USDT_MEME_ADDR, token1In, token0Want, beforeOrderId],
+    account,
+})
+console.log('sim.result:', sim.result)
+
+hash = await walletClient.writeContract(sim.request)
+console.log('placeLimitOrder done')
+```
+
+第一步需要token授权：由于挂单是0手续费，所以授权的额度等于转入合约挂单的数量。
+
+第二步获取插入的位置，即beforeOrderId。
+
+第三步用beforeOrderId去挂单，如果beforeOrderId不正确，合约会自己从头开始查到合适的位置，消耗较多gas，确保挂单成功。
+
+#### 市价单
+流程跟限价单类似，只是调用的takeOrder变成了takeOrder2。takeOrder和takeOrder2都是吃单，区别在于：
+
+- takeOrder吃完单后，把剩下的挂单
+- takeOrder2吃完单后，把剩下的返回给用户
+
+```javascripts
+let token0In = viem.parseUnits('100', 18)
+let token1Want = viem.parseUnits('100', 6)
+
+let fee = 100n //read from contract
+let token0InWithFee = token0In * fee / 10000n + token0In
+let hash = await walletClient.writeContract({
+    address: MEME_ADDR,
+    abi: erc20Json.abi,
+    functionName: 'approve',
+    args: [SERVICE_ADDR, token0InWithFee],
+    account,
+})
+await publicClient.waitForTransactionReceipt({ hash })
+console.log('approve done')
+
+let sim = await publicClient.simulateContract({
+    address: SERVICE_ADDR,
+    abi: serviceJson.abi,
+    functionName: 'takeOrder2',
+    args: [MEME_USDT_ADDR, token0In, token1Want],
+    account,
+})
+console.log('sim.result:', sim.result)
+
+hash = await walletClient.writeContract(sim.request)
+console.log('takeOrder done')
+```
+
+返回的数据格式：
+
+```javascripts
+sim.result: [ 100000000000000000000n, 100000000n, 1000000000000000000n ]
+```
+
+这三个数值对应[ token0Pay, token1Gain, token0Fee ]，也跟限价单一样。
