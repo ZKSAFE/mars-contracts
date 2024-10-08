@@ -7,11 +7,18 @@ import * as serviceJson from '../artifacts/contracts/v2/TradeService.sol/TradeSe
 import * as tradeJson from '../artifacts/contracts/v2/MonoTrade.sol/MonoTrade.json'
 
 //linea_sepolia 2024/9/1
+// var USDT_ADDR = '0xd6b0cd180639d9464f51a0ecb816a22add26f701'
+// var MEME_ADDR = '0x89491dd50edbee8caae912cba162a6b2c6ac69ce'
+// var SERVICE_ADDR = '0x2d90e99d7ff0f7ad75e94bfceae21ebfdbadad84'
+// var USDT_MEME_ADDR = '0x566137bC9A4a28214B4407dd6dE8bff291C4C21F'
+// var MEME_USDT_ADDR = '0x9aA120dCA5fDeED7e26ceCA5346dC7ff0b6684Aa'
+
+//linea_sepolia 2024/10/8
 var USDT_ADDR = '0xd6b0cd180639d9464f51a0ecb816a22add26f701'
 var MEME_ADDR = '0x89491dd50edbee8caae912cba162a6b2c6ac69ce'
-var SERVICE_ADDR = '0x2d90e99d7ff0f7ad75e94bfceae21ebfdbadad84'
-var USDT_MEME_ADDR = '0x566137bC9A4a28214B4407dd6dE8bff291C4C21F'
-var MEME_USDT_ADDR = '0x9aA120dCA5fDeED7e26ceCA5346dC7ff0b6684Aa'
+var SERVICE_ADDR = '0xd8456d902cb9fcfab991ca8e48312f5718cdaa79'
+var USDT_MEME_ADDR = '0x75351fD68BDC2cafc6f1C80993421b08aC2bf0eA'
+var MEME_USDT_ADDR = '0x18D5b2f3ABbE2F314B32966c41604761F3d69346'
 
 async function main() {
     const pk = '0x' + process.env.ETH_PK_1 as string
@@ -37,14 +44,14 @@ async function main() {
     // await initBuyOrders(walletClient, publicClient, account)
     // await initSellOrders(walletClient, publicClient, account)
 
-    // await getTradeAddr(walletClient, publicClient, account)
-    // await getTradeInfo(walletClient, publicClient, account)
-    // await getOrderList(walletClient, publicClient, account)
+    await getTradeAddr(walletClient, publicClient, account)
+    await getTradeInfo(walletClient, publicClient, account)
+    await getOrderList(walletClient, publicClient, account)
     // await getUserOrderList(walletClient, publicClient, account)
 
     // await placeLimitOrder(walletClient, publicClient, account)
     // await makeOrder(walletClient, publicClient, account)
-    await takeOrder(walletClient, publicClient, account)
+    // await takeOrder(walletClient, publicClient, account)
 }
 
 
@@ -199,7 +206,7 @@ async function getTradeInfo(walletClient: any, publicClient: any, account: viem.
 async function getOrderList(walletClient: any, publicClient: any, account: viem.PrivateKeyAccount) {
     //get sell list
     let fromOrderId = 0
-    let num = 5
+    let num = 20
     let orderArr = await publicClient.readContract({
         address: SERVICE_ADDR as `0x${string}`,
         abi: serviceJson.abi,
@@ -222,7 +229,7 @@ async function getOrderList(walletClient: any, publicClient: any, account: viem.
 
     //get buy list
     fromOrderId = 0
-    num = 5
+    num = 20
     orderArr = await publicClient.readContract({
         address: SERVICE_ADDR as `0x${string}`,
         abi: serviceJson.abi,
@@ -295,7 +302,7 @@ async function placeLimitOrder(walletClient: any, publicClient: any, account: vi
     let sim = await publicClient.simulateContract({
         address: SERVICE_ADDR,
         abi: serviceJson.abi,
-        functionName: 'takeOrder',
+        functionName: 'placeOrder',
         args: [MEME_USDT_ADDR, token0In, token1Want],
         account,
     })
@@ -360,7 +367,7 @@ async function takeOrder(walletClient: any, publicClient: any, account: viem.Pri
     let sim = await publicClient.simulateContract({
         address: SERVICE_ADDR,
         abi: serviceJson.abi,
-        functionName: 'takeOrder2',
+        functionName: 'takeOrder',
         args: [MEME_USDT_ADDR, token0In, token1Want],
         account,
     })

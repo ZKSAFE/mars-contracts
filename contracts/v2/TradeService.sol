@@ -249,18 +249,20 @@ contract TradeService is Ownable2Step {
         _addOrderCreate(tradeAddr, newOrderId);
     }
 
-    //Experience like CEX, if partly done, the left makes sell order
-    function takeOrder(address tradeAddr, uint112 token0In, uint112 token1Want) external returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
+    //if partly done, the left makes sell order
+    function placeOrder(address tradeAddr, uint112 token0In, uint112 token1Want) external returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
         MonoTrade trade = MonoTrade(tradeAddr);
         address token0 = trade.token0();
         address token1 = trade.token1();
-        
+
         uint112 fullFee = token0In * trade.fee() / 10000;
         uint112 token0InWithFee = fullFee + token0In;
         token0.safeTransferFrom(msg.sender, address(this), token0InWithFee);
 
         (token0Pay, token1Gain, token0Fee) = trade.takeOrder(token0In, token1Want);
-        token1.safeTransfer(msg.sender, token1Gain);
+        if (token1Gain > 0) {
+            token1.safeTransfer(msg.sender, token1Gain);
+        }
         if (fullFee > token0Fee) {
             token0.safeTransfer(msg.sender, fullFee - token0Fee); //give back
         }
@@ -277,8 +279,8 @@ contract TradeService is Ownable2Step {
         }
     }
 
-    //Experience like CEX, if partly done, the left give back
-    function takeOrder2(address tradeAddr, uint112 token0In, uint112 token1Want) external returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
+    //if partly done, the left give back
+    function takeOrder(address tradeAddr, uint112 token0In, uint112 token1Want) external returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
         MonoTrade trade = MonoTrade(tradeAddr);
         address token0 = trade.token0();
         address token1 = trade.token1();

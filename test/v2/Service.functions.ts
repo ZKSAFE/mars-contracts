@@ -73,11 +73,11 @@ describe('Service functions test', function () {
     })
 
 
-    it('testing takeBuyOrder: auto make sell order', async function () {
+    it('testing placeOrder: auto make sell order', async function () {
         account = accounts[1].account
         await weth.write.approve([service.address, viem.parseUnits('1000', 18)], { account })
 
-        await service.write.takeOrder([trade_weth_usdt.address, viem.parseUnits('3', 18), viem.parseUnits('330', 6)], { account })
+        await service.write.placeOrder([trade_weth_usdt.address, viem.parseUnits('3', 18), viem.parseUnits('330', 6)], { account })
 
         expect(await weth.read.balanceOf([accounts[0].account.address])).to.equal(viem.parseUnits('0.02', 18))
         expect(await usdt.read.balanceOf([accounts[0].account.address])).to.equal(viem.parseUnits('0', 6))
@@ -102,11 +102,11 @@ describe('Service functions test', function () {
     })
 
 
-    it('testing takeBuyOrder2: the left give back', async function () {
+    it('testing takeOrder: the left give back', async function () {
         account = accounts[1].account
         await weth.write.approve([service.address, viem.parseUnits('1000', 18)], { account })
 
-        await service.write.takeOrder2([trade_weth_usdt.address, viem.parseUnits('3', 18), viem.parseUnits('300', 6)], { account })
+        await service.write.takeOrder([trade_weth_usdt.address, viem.parseUnits('3', 18), viem.parseUnits('300', 6)], { account })
 
         expect(await weth.read.balanceOf([accounts[0].account.address])).to.equal(viem.parseUnits('0.04', 18))
         expect(await usdt.read.balanceOf([accounts[0].account.address])).to.equal(viem.parseUnits('0', 6))
@@ -147,11 +147,11 @@ describe('Service functions test', function () {
     })
 
 
-    it('testing takeSellOrder: auto make buy order', async function () {
+    it('testing placeSellOrder: auto make buy order', async function () {
         account = accounts[2].account
         await usdt.write.approve([service.address, viem.parseUnits('303', 6)], { account })
 
-        await service.write.takeOrder([trade_usdt_weth.address, viem.parseUnits('300', 6), viem.parseUnits('3', 18)], { account })
+        await service.write.placeOrder([trade_usdt_weth.address, viem.parseUnits('300', 6), viem.parseUnits('3', 18)], { account })
 
         expect(await weth.read.balanceOf([accounts[0].account.address])).to.equal(viem.parseUnits('0.04', 18))
         expect(await usdt.read.balanceOf([accounts[0].account.address])).to.equal(viem.parseUnits('1.4', 6))
@@ -180,11 +180,11 @@ describe('Service functions test', function () {
     })
 
 
-    it('testing takeSellOrder2: the left give back', async function () {
+    it('testing takeSellOrder: the left give back', async function () {
         account = accounts[2].account
         await usdt.write.approve([service.address, viem.parseUnits('1100', 6)], { account })
 
-        await service.write.takeOrder2([trade_usdt_weth.address, viem.parseUnits('330', 6), viem.parseUnits('3', 18)], { account })
+        await service.write.takeOrder([trade_usdt_weth.address, viem.parseUnits('330', 6), viem.parseUnits('3', 18)], { account })
 
         expect(await weth.read.balanceOf([accounts[0].account.address])).to.equal(viem.parseUnits('0.04', 18))
         expect(await usdt.read.balanceOf([accounts[0].account.address])).to.equal(viem.parseUnits('3.6', 6))
@@ -206,7 +206,7 @@ describe('Service functions test', function () {
         account = accounts[1].account
         await weth.write.approve([service.address, viem.parseUnits('1000', 18)], { account })
 
-        await service.write.takeOrder2([trade_weth_usdt.address, viem.parseUnits('10', 18), 1n], { account })
+        await service.write.takeOrder([trade_weth_usdt.address, viem.parseUnits('10', 18), 1n], { account })
 
         expect(await weth.read.balanceOf([accounts[0].account.address])).to.equal(viem.parseUnits('0.066', 18))
         expect(await usdt.read.balanceOf([accounts[0].account.address])).to.equal(viem.parseUnits('3.6', 6))
@@ -224,11 +224,11 @@ describe('Service functions test', function () {
     })
 
 
-    it('testing takeSellOrder2: take all', async function () {
+    it('testing takeSellOrder: take all', async function () {
         account = accounts[2].account
         await usdt.write.approve([service.address, viem.parseUnits('1100', 6)], { account })
 
-        await service.write.takeOrder2([trade_usdt_weth.address, viem.parseUnits('200', 6), 1n], { account })
+        await service.write.takeOrder([trade_usdt_weth.address, viem.parseUnits('200', 6), 1n], { account })
 
         expect(await weth.read.balanceOf([accounts[0].account.address])).to.equal(viem.parseUnits('0.066', 18))
         expect(await usdt.read.balanceOf([accounts[0].account.address])).to.equal(viem.parseUnits('4.8', 6))

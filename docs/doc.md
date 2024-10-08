@@ -322,7 +322,7 @@ console.log('approve done')
 let sim = await publicClient.simulateContract({
     address: SERVICE_ADDR,
     abi: serviceJson.abi,
-    functionName: 'takeOrder',
+    functionName: 'placeOrder',
     args: [MEME_USDT_ADDR, token0In, token1Want],
     account,
 })
@@ -394,10 +394,10 @@ console.log('placeLimitOrder done')
 第三步用beforeOrderId去挂单，如果beforeOrderId不正确，合约会自己从头开始查到合适的位置，消耗较多gas，确保挂单成功。
 
 #### 市价单
-流程跟限价单类似，只是调用的takeOrder变成了takeOrder2。takeOrder和takeOrder2都是吃单，区别在于：
+流程跟限价单类似，只是调用的placeOrder变成了takeOrder。placeOrder和takeOrder都有吃单，区别在于：
 
-- takeOrder吃完单后，把剩下的挂单
-- takeOrder2吃完单后，把剩下的返回给用户
+- placeOrder吃完单后，把剩下的挂单
+- takeOrder吃完单后，把剩下的返回给用户
 
 ```javascripts
 let token0In = viem.parseUnits('100', 18)
@@ -418,7 +418,7 @@ console.log('approve done')
 let sim = await publicClient.simulateContract({
     address: SERVICE_ADDR,
     abi: serviceJson.abi,
-    functionName: 'takeOrder2',
+    functionName: 'takeOrder',
     args: [MEME_USDT_ADDR, token0In, token1Want],
     account,
 })

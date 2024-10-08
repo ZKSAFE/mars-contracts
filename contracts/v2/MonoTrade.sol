@@ -40,6 +40,8 @@ contract MonoTrade {
     mapping (uint48 => Order) public orders; //orderId => Order
     uint48 public topOrderId; //0:orders is empty
 
+    event TakeOrder(address taker,  uint112 token0Pay, uint112 token1Gain);
+
     constructor(address _token0, address _token1, uint8 _fee, address _feeTo) {
         token0 = _token0;
         token1 = _token1;
@@ -101,7 +103,9 @@ contract MonoTrade {
     }
 
     function takeOrder(uint112 token0In, uint112 token1ForPrice) public returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
-        require(topOrderId != 0, "MonoTrade: takeOrder:: orders is empty");
+        if (topOrderId == 0) {
+            return (0, 0, 0); //orders is empty
+        }
 
         token0.safeTransferFrom(msg.sender, address(this), uint(token0In));
 
@@ -145,7 +149,7 @@ contract MonoTrade {
         }
 
         token0Pay = token0In - takerToken0Left;
-        require(token0Pay > 0, "MonoTrade: takeOrder:: no deal");
+        // require(token0Pay > 0, "MonoTrade: takeOrder:: no deal");
 
         //if feeTo is contract
         address feeToAddr = feeTo.code.length > 0 ? IFeeTo(feeTo).feeTo() : feeTo;
@@ -162,6 +166,7 @@ contract MonoTrade {
         }
         if (token1Gain > 0) {
             token1.safeTransfer(msg.sender, uint(token1Gain));
+            emit TakeOrder(msg.sender, token0Pay, token1Gain);
         }
     }
 
