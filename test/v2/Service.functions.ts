@@ -246,6 +246,19 @@ describe('Service functions test', function () {
     })
 
 
+    it('testing eventlog', async function () {
+        let logs = await publicClient.getLogs({
+            address: trade_usdt_weth.address,
+            event: viem.parseAbiItem('event TakeOrder(address taker,  uint112 token0Pay, uint112 token1Gain)'),
+            args: { 
+                taker: accounts[2].account.address
+            },
+            fromBlock: 1n
+        })
+        console.log('event TakeOrder logs:', logs)
+    })
+
+
     async function print() {
         for (let i = 0; i <= 2; i++) {
             console.log('account' + i + ' weth:',
