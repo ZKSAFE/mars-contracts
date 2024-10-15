@@ -16,29 +16,29 @@ MonoTrade的订单列表永远按照价格排序。为了实现这点，在挂�
 ### 准备工作
 测试合约现已部署到以下地址：
 
-#### linea_sepolia 2024/9/1
-USDT_ADDR: 0xd6b0cd180639d9464f51a0ecb816a22add26f701<br>
-MEME_ADDR: 0x89491dd50edbee8caae912cba162a6b2c6ac69ce<br>
-SERVICE_ADDR: 0x2d90e99d7ff0f7ad75e94bfceae21ebfdbadad84<br>
-USDT_MEME_ADDR: 0x566137bC9A4a28214B4407dd6dE8bff291C4C21F<br>
-MEME_USDT_ADDR: 0x9aA120dCA5fDeED7e26ceCA5346dC7ff0b6684Aa<br>
+#### unichainSepolia 2024/10/15
+USDT_ADDR: 0x99b52f524b70cd0c93bd592b1843bf2f49a5fe75<br>
+MEME_ADDR: 0x4355d86e90d1646d0b79a362b7e5b29092047bce<br>
+SERVICE_ADDR: 0x9260bb1a28a1fd9f8dbd4386577003b51bb07fa6<br>
+USDT_MEME_ADDR: 0x03DF076cA486b570a9Fb24bb77F7687B6e64b4Da<br>
+MEME_USDT_ADDR: 0x9b16489771c8D3DaD4aA8e09A6B540B0A02D24F6<br>
 
 [演示代码](../scripts/docs.ts) 使用`viem@2.13.8`，初始代码如下：
 
 ```javascripts
 import * as viem from 'viem'
 import { createPublicClient, createWalletClient, http } from 'viem'
-import { lineaSepolia } from 'viem/chains'
+import { lineaSepolia, unichainSepolia } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
 import * as erc20Json from '../artifacts/contracts/mock/MockERC20.sol/MockERC20.json'
 import * as serviceJson from '../artifacts/contracts/v2/TradeService.sol/TradeService.json'
 
-//linea_sepolia 2024/9/1
-var USDT_ADDR = '0xd6b0cd180639d9464f51a0ecb816a22add26f701'
-var MEME_ADDR = '0x89491dd50edbee8caae912cba162a6b2c6ac69ce'
-var SERVICE_ADDR = '0x2d90e99d7ff0f7ad75e94bfceae21ebfdbadad84'
-var USDT_MEME_ADDR = '0x566137bC9A4a28214B4407dd6dE8bff291C4C21F'
-var MEME_USDT_ADDR = '0x9aA120dCA5fDeED7e26ceCA5346dC7ff0b6684Aa'
+//unichainSepolia 2024/10/15
+var USDT_ADDR = '0x99b52f524b70cd0c93bd592b1843bf2f49a5fe75'
+var MEME_ADDR = '0x4355d86e90d1646d0b79a362b7e5b29092047bce'
+var SERVICE_ADDR = '0x9260bb1a28a1fd9f8dbd4386577003b51bb07fa6'
+var USDT_MEME_ADDR = '0x03DF076cA486b570a9Fb24bb77F7687B6e64b4Da'
+var MEME_USDT_ADDR = '0x9b16489771c8D3DaD4aA8e09A6B540B0A02D24F6'
 
 async function main() {
     const pk = '0x' + process.env.ETH_PK_1 as string
@@ -46,7 +46,7 @@ async function main() {
     console.log('account:', account.address)
 
     const publicClient = createPublicClient({
-        chain: lineaSepolia,
+        chain: unichainSepolia,
         transport: http()
     })
     console.log('eth:', viem.formatUnits(
@@ -57,7 +57,7 @@ async function main() {
 
     const walletClient = createWalletClient({
         account,
-        chain: lineaSepolia,
+        chain: unichainSepolia,
         transport: http()
     })
 
@@ -243,7 +243,7 @@ progress表示订单的进度，最大值是type(uint32).max，0表示一点都�
 在查看挂单的基础上，获取的最靠前的订单的价格，即当前的价格。所以会有2个价格，买单的和卖单的，两者取平均值即可。
 
 
-#### 查看用户的挂单
+#### 查看用户的挂单和吃单
 
 ```javascripts
 let lastIndex = 0
@@ -279,11 +279,26 @@ userOrderArr: [
 ]
 ```
 
-返回的userOrderArr是按时间排序的，从今到古。index是用户下的第几个单，不局限于某个MonoTrade，是全局的，所以返回的trade表示是哪个MonoTrade。amountIn是转了多少个token1进去，amountOut是想要多少个token0回来。如果后面没有订单了，返回的订单index为0。
+返回的userOrderArr是按时间排序的，从今到古。index是用户下的第几个单，不局限于某个MonoTrade，是全局的，挂单和吃单记录都一起返回。如果后面没有订单了，返回的订单index为0。
 
-orderId不是全局的，不同的MonoTrade可能有同样的orderId。
+如果是userOrder是挂单：
+    - trade表示在哪个MonoTrade挂单
+    - amountIn是转了多少个token1进去
+    - amountOut是想要多少个token0回来
+    - orderId是MonoTrade里的，非全局
+    - progress表示挂单的成交进度，范围从0～4294967295，0表示未成交，4294967295表示完全成交
+    - isRemoved，如果完全成交了，那么订单自动移除，标记为true，或者订单被用户取消了，也会标记为true
 
-isRemoved，如果完全成交了，那么订单自动移除，标记为true，或者订单被用户取消了，也会标记为true。
+如果用户挂单时候的价格能够立即成交，会先吃一部分单，剩下的再挂单，那么也算是挂单，progress一开始就会大于0；如果一开始就完全成交，那么算吃单。
+
+如果userOrder是吃单：
+    - trade表示在哪个MonoTrade吃单
+    - amountIn是转了多少个token0进去
+    - amountOut是成交了多少个token1回来
+    - orderId为0，因为没有挂单
+    - progress为4294967295，吃单肯定是完全成交
+    - isRemoved为true
+
 
 
 ### 写入合约

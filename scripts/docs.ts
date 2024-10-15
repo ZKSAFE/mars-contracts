@@ -1,6 +1,6 @@
 import * as viem from 'viem'
 import { createPublicClient, createWalletClient, http } from 'viem'
-import { lineaSepolia } from 'viem/chains'
+import { lineaSepolia, unichainSepolia } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
 import * as erc20Json from '../artifacts/contracts/mock/MockERC20.sol/MockERC20.json'
 import * as serviceJson from '../artifacts/contracts/v2/TradeService.sol/TradeService.json'
@@ -14,11 +14,18 @@ import * as tradeJson from '../artifacts/contracts/v2/MonoTrade.sol/MonoTrade.js
 // var MEME_USDT_ADDR = '0x9aA120dCA5fDeED7e26ceCA5346dC7ff0b6684Aa'
 
 //linea_sepolia 2024/10/8
-var USDT_ADDR = '0xd6b0cd180639d9464f51a0ecb816a22add26f701'
-var MEME_ADDR = '0x89491dd50edbee8caae912cba162a6b2c6ac69ce'
-var SERVICE_ADDR = '0xd8456d902cb9fcfab991ca8e48312f5718cdaa79'
-var USDT_MEME_ADDR = '0x75351fD68BDC2cafc6f1C80993421b08aC2bf0eA'
-var MEME_USDT_ADDR = '0x18D5b2f3ABbE2F314B32966c41604761F3d69346'
+// var USDT_ADDR = '0xd6b0cd180639d9464f51a0ecb816a22add26f701'
+// var MEME_ADDR = '0x89491dd50edbee8caae912cba162a6b2c6ac69ce'
+// var SERVICE_ADDR = '0xd8456d902cb9fcfab991ca8e48312f5718cdaa79'
+// var USDT_MEME_ADDR = '0x75351fD68BDC2cafc6f1C80993421b08aC2bf0eA'
+// var MEME_USDT_ADDR = '0x18D5b2f3ABbE2F314B32966c41604761F3d69346'
+
+//unichainSepolia 2024/10/15
+var USDT_ADDR = '0x99b52f524b70cd0c93bd592b1843bf2f49a5fe75'
+var MEME_ADDR = '0x4355d86e90d1646d0b79a362b7e5b29092047bce'
+var SERVICE_ADDR = '0x9260bb1a28a1fd9f8dbd4386577003b51bb07fa6'
+var USDT_MEME_ADDR = '0x03DF076cA486b570a9Fb24bb77F7687B6e64b4Da'
+var MEME_USDT_ADDR = '0x9b16489771c8D3DaD4aA8e09A6B540B0A02D24F6'
 
 async function main() {
     const pk = '0x' + process.env.ETH_PK_1 as string
@@ -26,7 +33,7 @@ async function main() {
     console.log('account:', account.address)
 
     const publicClient = createPublicClient({
-        chain: lineaSepolia,
+        chain: unichainSepolia,
         transport: http()
     })
     console.log('eth:', viem.formatUnits(
@@ -37,19 +44,19 @@ async function main() {
 
     const walletClient = createWalletClient({
         account,
-        chain: lineaSepolia,
+        chain: unichainSepolia,
         transport: http()
     })
 
     // await initBuyOrders(walletClient, publicClient, account)
     // await initSellOrders(walletClient, publicClient, account)
 
-    await getTradeAddr(walletClient, publicClient, account)
-    await getTradeInfo(walletClient, publicClient, account)
-    await getOrderList(walletClient, publicClient, account)
+    // await getTradeAddr(walletClient, publicClient, account)
+    // await getTradeInfo(walletClient, publicClient, account)
+    // await getOrderList(walletClient, publicClient, account)
     // await getUserOrderList(walletClient, publicClient, account)
 
-    // await placeLimitOrder(walletClient, publicClient, account)
+    // await placeOrder(walletClient, publicClient, account)
     // await makeOrder(walletClient, publicClient, account)
     // await takeOrder(walletClient, publicClient, account)
 }
@@ -75,73 +82,6 @@ async function getTradeAddr(walletClient: any, publicClient: any, account: viem.
 
 
 async function getTradeInfo(walletClient: any, publicClient: any, account: viem.PrivateKeyAccount) {
-    // let token0Addr = await publicClient.readContract({
-    //     address: USDT_MEME_ADDR as `0x${string}`,
-    //     abi: tradeJson.abi,
-    //     functionName: 'token0',
-    // })
-    // console.log('USDT_MEME token0Addr:', token0Addr)
-
-    // let token0Name = await publicClient.readContract({
-    //     address: token0Addr as `0x${string}`,
-    //     abi: erc20Json.abi,
-    //     functionName: 'name',
-    // })
-    // console.log('USDT_MEME token0 name:', token0Name)
-
-    // let token0Symbol = await publicClient.readContract({
-    //     address: token0Addr as `0x${string}`,
-    //     abi: erc20Json.abi,
-    //     functionName: 'symbol',
-    // })
-    // console.log('USDT_MEME token0 symbol:', token0Symbol)
-
-    // let token0Decimals = await publicClient.readContract({
-    //     address: token0Addr as `0x${string}`,
-    //     abi: erc20Json.abi,
-    //     functionName: 'decimals',
-    // })
-    // console.log('USDT_MEME token0 decimals:', token0Decimals)
-
-
-    // let token1Addr = await publicClient.readContract({
-    //     address: USDT_MEME_ADDR as `0x${string}`,
-    //     abi: tradeJson.abi,
-    //     functionName: 'token1',
-    // })
-    // console.log('USDT_MEME token1Addr:', token1Addr)
-
-    // let token1Name = await publicClient.readContract({
-    //     address: token1Addr as `0x${string}`,
-    //     abi: erc20Json.abi,
-    //     functionName: 'name',
-    // })
-    // console.log('USDT_MEME token1 name:', token1Name)
-
-    // let token1Symbol = await publicClient.readContract({
-    //     address: token1Addr as `0x${string}`,
-    //     abi: erc20Json.abi,
-    //     functionName: 'symbol',
-    // })
-    // console.log('USDT_MEME token1 symbol:', token1Symbol)
-
-    // let token1Decimals = await publicClient.readContract({
-    //     address: token1Addr as `0x${string}`,
-    //     abi: erc20Json.abi,
-    //     functionName: 'decimals',
-    // })
-    // console.log('USDT_MEME token1 decimals:', token1Decimals)
-
-
-    // let fee = await publicClient.readContract({
-    //     address: USDT_MEME_ADDR as `0x${string}`,
-    //     abi: tradeJson.abi,
-    //     functionName: 'fee',
-    // })
-    // console.log('USDT_MEME fee:', fee) //100 means 1%
-
-
-
     const tradeWagmi = {
         address: USDT_MEME_ADDR,
         abi: tradeJson.abi
@@ -283,7 +223,7 @@ async function getUserOrderList(walletClient: any, publicClient: any, account: v
 }
 
 
-async function placeLimitOrder(walletClient: any, publicClient: any, account: viem.PrivateKeyAccount) {
+async function placeOrder(walletClient: any, publicClient: any, account: viem.PrivateKeyAccount) {
     let token0In = viem.parseUnits('100', 18)
     let token1Want = viem.parseUnits('100', 6)
 
@@ -393,13 +333,14 @@ async function initSellOrders(walletClient: any, publicClient: any, account: vie
         let beforeOrderId = 0
         token1In = viem.parseUnits('100', 18)
         let token0Out = viem.parseUnits((100 + 10 * i).toString(), 6)
-        await walletClient.writeContract({
+        let hash = await walletClient.writeContract({
             address: SERVICE_ADDR,
             abi: serviceJson.abi,
             functionName: 'makeOrder',
             args: [USDT_MEME_ADDR, token1In, token0Out, beforeOrderId],
             account,
         })
+        await publicClient.waitForTransactionReceipt({ hash })
         console.log('makeOrder done', i)
     }
 }
@@ -421,13 +362,14 @@ async function initBuyOrders(walletClient: any, publicClient: any, account: viem
         let beforeOrderId = 0
         token1In = viem.parseUnits((100 - 10 * i).toString(), 6)
         let token0Out = viem.parseUnits('100', 18)
-        await walletClient.writeContract({
+        let hash = await walletClient.writeContract({
             address: SERVICE_ADDR,
             abi: serviceJson.abi,
             functionName: 'makeOrder',
             args: [MEME_USDT_ADDR, token1In, token0Out, beforeOrderId],
             account,
         })
+        await publicClient.waitForTransactionReceipt({ hash })
         console.log('makeOrder done', i)
     }
 }

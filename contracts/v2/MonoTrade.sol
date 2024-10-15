@@ -40,9 +40,9 @@ contract MonoTrade {
     mapping (uint48 => Order) public orders; //orderId => Order
     uint48 public topOrderId; //0:orders is empty
 
-    event TakeOrder(address indexed taker, uint112 token0Paid, uint112 token1Gain);
-    event MakeOrder(address indexed maker, uint48 indexed orderId, uint112 token1In, uint112 token0Out);
-    event CancelOrder(address indexed maker, uint48 indexed orderId);
+    event TakeOrder(uint112 token0Paid, uint112 token1Gain);
+    event MakeOrder(uint48 indexed orderId, uint112 token1In, uint112 token0Out);
+    event CancelOrder(uint48 indexed orderId);
 
     constructor(address _token0, address _token1, uint8 _fee, address _feeTo) {
         token0 = _token0;
@@ -102,7 +102,7 @@ contract MonoTrade {
         beforeOrder.afterOrderId = count;
         afterOrder.beforeOrderId = count;
 
-        emit MakeOrder(msg.sender, count, token1In, token0Out);
+        emit MakeOrder(count, token1In, token0Out);
         return count;
     }
 
@@ -170,7 +170,7 @@ contract MonoTrade {
         }
         if (token1Gain > 0) {
             token1.safeTransfer(msg.sender, uint(token1Gain));
-            emit TakeOrder(msg.sender, token0Paid, token1Gain);
+            emit TakeOrder(token0Paid, token1Gain);
         }
     }
 
@@ -189,6 +189,7 @@ contract MonoTrade {
         token1Left = order.amountIn - amountInUsed;
         if (token1Left > 0) {
             token1.safeTransfer(order.owner, uint(token1Left));
+            emit CancelOrder(orderId);
         }
     }
 
