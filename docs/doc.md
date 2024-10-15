@@ -282,22 +282,22 @@ userOrderArr: [
 返回的userOrderArr是按时间排序的，从今到古。index是用户下的第几个单，不局限于某个MonoTrade，是全局的，挂单和吃单记录都一起返回。如果后面没有订单了，返回的订单index为0。
 
 如果是userOrder是挂单：
-    - trade表示在哪个MonoTrade挂单
-    - amountIn是转了多少个token1进去
-    - amountOut是想要多少个token0回来
-    - orderId是MonoTrade里的，非全局
-    - progress表示挂单的成交进度，范围从0～4294967295，0表示未成交，4294967295表示完全成交
-    - isRemoved，如果完全成交了，那么订单自动移除，标记为true，或者订单被用户取消了，也会标记为true
+- trade表示在哪个MonoTrade挂单
+- amountIn是转了多少个token1进去
+- amountOut是想要多少个token0回来
+- orderId是MonoTrade里的，非全局
+- progress表示挂单的成交进度，范围从0～4294967295，0表示未成交，4294967295表示完全成交
+- isRemoved，如果完全成交了，那么订单自动移除，标记为true，或者订单被用户取消了，也会标记为true
 
 如果用户挂单时候的价格能够立即成交，会先吃一部分单，剩下的再挂单，那么也算是挂单，progress一开始就会大于0；如果一开始就完全成交，那么算吃单。
 
 如果userOrder是吃单：
-    - trade表示在哪个MonoTrade吃单
-    - amountIn是转了多少个token0进去
-    - amountOut是成交了多少个token1回来
-    - orderId为0，因为没有挂单
-    - progress为4294967295，吃单肯定是完全成交
-    - isRemoved为true
+- trade表示在哪个MonoTrade吃单
+- amountIn是转了多少个token0进去
+- amountOut是成交了多少个token1回来
+- orderId为0，因为没有挂单
+- progress为4294967295，吃单肯定是完全成交
+- isRemoved为true
 
 
 
