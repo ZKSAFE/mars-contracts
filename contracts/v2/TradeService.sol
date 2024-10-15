@@ -87,9 +87,6 @@ contract TradeService is Ownable2Step {
         return trades[token0][token1];
     }
 
-
-
-
     //for BuyList and SellList
     struct ListOrder {
         uint48 orderId;
@@ -116,6 +113,8 @@ contract TradeService is Ownable2Step {
         address trade;
         uint48 orderId;
         uint32 createTime;
+        uint112 paid; //bofore order created
+        uint112 gain; //bofore order created
     }
 
     //store user's order list, include all pairs
@@ -159,12 +158,53 @@ contract TradeService is Ownable2Step {
         }
 
         for (uint48 index = lastIndex; lastIndex - index < num && index > 0; --index) {
-            // console.log("loop:", index, lastIndex, num);
             OrderCreate memory orderCreate = orderCreates[_encodeAddressUint48(user, index)];
-            // console.log("orderCreate.orderId:", orderCreate.orderId);
-            MonoTrade.Order memory tradeOrder = MonoTrade(orderCreate.trade).getOrder(orderCreate.orderId);
-            orders[lastIndex - index] = _combineUserOrder(index, orderCreate, tradeOrder);
+
+            UserOrder memory userOrder;
+            if (orderCreate.orderId == 0) {
+                userOrder = UserOrder(
+                    index,
+                    orderCreate.trade,
+                    MonoTrade(orderCreate.trade).token0(),
+                    MonoTrade(orderCreate.trade).token1(),
+                    0,
+                    orderCreate.createTime,
+                    orderCreate.paid,
+                    orderCreate.gain,
+                    type(uint32).max,
+                    true
+                );
+
+            } else {
+                MonoTrade.Order memory tradeOrder = MonoTrade(orderCreate.trade).getOrder(orderCreate.orderId);
+
+                uint32 progress;
+                if (tradeOrder.progress < type(uint32).max) {
+                    progress = uint32(
+                            (uint(tradeOrder.amountIn) * tradeOrder.progress / type(uint32).max + orderCreate.paid)
+                            * type(uint32).max
+                            / (tradeOrder.amountIn + orderCreate.paid)
+                        );
+                } else {
+                    progress = type(uint32).max;
+                }
+
+                userOrder = UserOrder(
+                    index,
+                    orderCreate.trade,
+                    MonoTrade(orderCreate.trade).token0(),
+                    MonoTrade(orderCreate.trade).token1(),
+                    orderCreate.orderId,
+                    orderCreate.createTime,
+                    tradeOrder.amountIn + orderCreate.paid,
+                    uint112(uint(tradeOrder.amountOut) * (tradeOrder.amountIn + orderCreate.paid) / tradeOrder.amountIn),
+                    progress,
+                    tradeOrder.beforeOrderId == type(uint48).max
+                );
+            }
+            orders[lastIndex - index] = userOrder;
         }
+
         return orders;
     }
 
@@ -177,25 +217,13 @@ contract TradeService is Ownable2Step {
         u48 = uint48(uint208(b26));
     }
 
-    function _combineUserOrder(uint48 index, OrderCreate memory orderCreate, MonoTrade.Order memory tradeOrder) internal view returns (UserOrder memory) {
-        return UserOrder(
-            index,
-            orderCreate.trade,
-            MonoTrade(orderCreate.trade).token0(),
-            MonoTrade(orderCreate.trade).token1(),
-            orderCreate.orderId,
-            orderCreate.createTime,
-            tradeOrder.amountIn,
-            tradeOrder.amountOut,
-            tradeOrder.progress,
-            tradeOrder.beforeOrderId == type(uint48).max
-        );
-    }
-
-    function _addOrderCreate(address tradeAddr, uint48 newOrderId) internal {
+    function _addOrderCreate(address tradeAddr, uint48 newOrderId, uint112 pay, uint112 gain) internal {
         uint48 index = userOrdersLength[msg.sender];
         index++;
-        orderCreates[_encodeAddressUint48(msg.sender, index)] =  OrderCreate(tradeAddr, newOrderId, uint32(block.timestamp));
+
+        orderCreates[_encodeAddressUint48(msg.sender, index)] 
+            = OrderCreate(tradeAddr, newOrderId, uint32(block.timestamp), pay, gain);
+
         userOrdersLength[msg.sender] = index;
     }
 
@@ -203,7 +231,9 @@ contract TradeService is Ownable2Step {
     /////// trading ///////
     ////////////////////////
 
-    function findBeforeOrderId(address tradeAddr, uint112 token1In, uint112 token0Out, uint48 findFromId) view public returns (uint48) {
+    function findBeforeOrderId(address tradeAddr, uint112 token1In, uint112 token0Out, uint48 findFromId)
+        view public returns (uint48) {
+
         MonoTrade trade = MonoTrade(tradeAddr);
         uint48 id = trade.topOrderId();
 
@@ -215,7 +245,9 @@ contract TradeService is Ownable2Step {
             findFromId = id;
         }
 
-        (uint48 beforeOrderId, uint48 afterOrderId, , uint112 amountIn, uint112 amountOut, ) = trade.orders(findFromId);
+        (uint48 beforeOrderId, uint48 afterOrderId, , uint112 amountIn, uint112 amountOut, )
+            = trade.orders(findFromId);
+        
         if (amountIn != 0 && beforeOrderId != type(uint48).max) {
             id = findFromId;
         }
@@ -236,7 +268,9 @@ contract TradeService is Ownable2Step {
     }
 
     //if beforeOrder not exist, auto find BeforeOrderId
-    function makeOrder(address tradeAddr, uint112 token1In, uint112 token0Out, uint48 beforeOrderId) external returns (uint48 newOrderId) {
+    function makeOrder(address tradeAddr, uint112 token1In, uint112 token0Out, uint48 beforeOrderId)
+        external returns (uint48 newOrderId) {
+
         MonoTrade trade = MonoTrade(tradeAddr);
 
         address token1 = trade.token1();
@@ -246,11 +280,13 @@ contract TradeService is Ownable2Step {
         newOrderId = trade.makeOrder(token1In, token0Out, tradeBeforeOrderId);
         trade.changeOrderOwner(newOrderId, msg.sender);
 
-        _addOrderCreate(tradeAddr, newOrderId);
+        _addOrderCreate(tradeAddr, newOrderId, 0, 0);
     }
 
     //if partly done, the left makes sell order
-    function placeOrder(address tradeAddr, uint112 token0In, uint112 token1Want) external returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
+    function placeOrder(address tradeAddr, uint112 token0In, uint112 token1Want)
+        external returns (uint112 token0Paid, uint112 token1Gain, uint112 token0Fee) {
+
         MonoTrade trade = MonoTrade(tradeAddr);
         address token0 = trade.token0();
         address token1 = trade.token1();
@@ -259,7 +295,7 @@ contract TradeService is Ownable2Step {
         uint112 token0InWithFee = fullFee + token0In;
         token0.safeTransferFrom(msg.sender, address(this), token0InWithFee);
 
-        (token0Pay, token1Gain, token0Fee) = trade.takeOrder(token0In, token1Want);
+        (token0Paid, token1Gain, token0Fee) = trade.takeOrder(token0In, token1Want);
         if (token1Gain > 0) {
             token1.safeTransfer(msg.sender, token1Gain);
         }
@@ -268,19 +304,26 @@ contract TradeService is Ownable2Step {
         }
         
         //make sell order
-        if (token0In > token0Pay) {
-            uint112 newToken0In = token0In - token0Pay;
+        if (token0In > token0Paid) {
+            uint112 newToken0In = token0In - token0Paid;
             uint112 newToken1Want = newToken0In * token1Want / token0In;
             tradeAddr = trades[token1][token0];
             trade = MonoTrade(tradeAddr);
             uint48 beforeOrderId = findBeforeOrderId(tradeAddr, newToken0In, newToken1Want, 0);
             uint48 newOrderId = trade.makeOrder(newToken0In, newToken1Want, beforeOrderId);
             trade.changeOrderOwner(newOrderId, msg.sender);
+
+            _addOrderCreate(tradeAddr, newOrderId, token0Paid, token1Gain);
+        
+        } else {
+            _addOrderCreate(tradeAddr, 0, token0Paid, token1Gain);
         }
     }
 
     //if partly done, the left give back
-    function takeOrder(address tradeAddr, uint112 token0In, uint112 token1Want) external returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
+    function takeOrder(address tradeAddr, uint112 token0In, uint112 token1Want)
+        external returns (uint112 token0Paid, uint112 token1Gain, uint112 token0Fee) {
+
         MonoTrade trade = MonoTrade(tradeAddr);
         address token0 = trade.token0();
         address token1 = trade.token1();
@@ -289,14 +332,16 @@ contract TradeService is Ownable2Step {
         uint112 token0InWithFee = fullFee + token0In;
         token0.safeTransferFrom(msg.sender, address(this), token0InWithFee);
 
-        (token0Pay, token1Gain, token0Fee) = trade.takeOrder(token0In, token1Want);
+        (token0Paid, token1Gain, token0Fee) = trade.takeOrder(token0In, token1Want);
         token1.safeTransfer(msg.sender, token1Gain);
         
         //give back
-        if (token0In > token0Pay) {
-            uint112 token0Left = token0In - token0Pay;
+        if (token0In > token0Paid) {
+            uint112 token0Left = token0In - token0Paid;
             uint112 feeBack = fullFee - token0Fee;
             token0.safeTransfer(msg.sender, token0Left + feeBack); //give back
         }
+
+        _addOrderCreate(tradeAddr, 0, token0Paid, token1Gain);
     }
 }

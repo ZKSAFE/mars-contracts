@@ -53,8 +53,8 @@ contract Mining {
             // uint balance = IERC20(routerTokenIn).balanceOf(address(this));
             // console.log("balance:", balance, "tokenInAmount:", tokenInAmount);
             
-            (uint112 token0Pay, uint112 token1Gain, ) = MonoTrade(routerTradeAddr).takeOrder(tokenInAmount, 1);
-            require(token0Pay == tokenInAmount, "Mining: mine:: partly done is not allowed");
+            (uint112 token0Paid, uint112 token1Gain, ) = MonoTrade(routerTradeAddr).takeOrder(tokenInAmount, 1);
+            require(token0Paid == tokenInAmount, "Mining: mine:: partly done is not allowed");
             
             tokenInAmount = token1Gain; //continue loop
         }

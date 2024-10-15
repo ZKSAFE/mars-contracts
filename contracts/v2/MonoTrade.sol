@@ -40,7 +40,9 @@ contract MonoTrade {
     mapping (uint48 => Order) public orders; //orderId => Order
     uint48 public topOrderId; //0:orders is empty
 
-    event TakeOrder(address taker,  uint112 token0Pay, uint112 token1Gain);
+    event TakeOrder(address indexed taker, uint112 token0Paid, uint112 token1Gain);
+    event MakeOrder(address indexed maker, uint48 indexed orderId, uint112 token1In, uint112 token0Out);
+    event CancelOrder(address indexed maker, uint48 indexed orderId);
 
     constructor(address _token0, address _token1, uint8 _fee, address _feeTo) {
         token0 = _token0;
@@ -99,10 +101,12 @@ contract MonoTrade {
         orders[count] = Order(beforeOrderId, beforeOrder.afterOrderId, msg.sender, token1In, token0Out, 0);
         beforeOrder.afterOrderId = count;
         afterOrder.beforeOrderId = count;
+
+        emit MakeOrder(msg.sender, count, token1In, token0Out);
         return count;
     }
 
-    function takeOrder(uint112 token0In, uint112 token1ForPrice) public returns (uint112 token0Pay, uint112 token1Gain, uint112 token0Fee) {
+    function takeOrder(uint112 token0In, uint112 token1ForPrice) public returns (uint112 token0Paid, uint112 token1Gain, uint112 token0Fee) {
         if (topOrderId == 0) {
             return (0, 0, 0); //orders is empty
         }
@@ -148,15 +152,15 @@ contract MonoTrade {
             }
         }
 
-        token0Pay = token0In - takerToken0Left;
-        // require(token0Pay > 0, "MonoTrade: takeOrder:: no deal");
+        token0Paid = token0In - takerToken0Left;
+        // require(token0Paid > 0, "MonoTrade: takeOrder:: no deal");
 
         //if feeTo is contract
         address feeToAddr = feeTo.code.length > 0 ? IFeeTo(feeTo).feeTo() : feeTo;
 
         //if msg.sender is feeTo, fee is 0
         if (msg.sender != feeToAddr) {
-            token0Fee = token0Pay * uint112(fee) / 10000;
+            token0Fee = token0Paid * uint112(fee) / 10000;
             if (token0Fee > 0) {
                 token0.safeTransferFrom(msg.sender, feeToAddr, uint(token0Fee));
             }
@@ -166,7 +170,7 @@ contract MonoTrade {
         }
         if (token1Gain > 0) {
             token1.safeTransfer(msg.sender, uint(token1Gain));
-            emit TakeOrder(msg.sender, token0Pay, token1Gain);
+            emit TakeOrder(msg.sender, token0Paid, token1Gain);
         }
     }
 
@@ -182,7 +186,6 @@ contract MonoTrade {
         order.beforeOrderId = type(uint48).max;
 
         uint112 amountInUsed = uint112(uint(order.progress) * order.amountIn / type(uint32).max);
-        // console.log("cancelOrder amountInUsed:", amountInUsed, order.progress);
         token1Left = order.amountIn - amountInUsed;
         if (token1Left > 0) {
             token1.safeTransfer(order.owner, uint(token1Left));
