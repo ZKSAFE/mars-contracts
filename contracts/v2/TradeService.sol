@@ -2,7 +2,8 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "../help/TransferHelper.sol";
 import "./MonoTrade.sol";
 import "hardhat/console.sol";
@@ -10,7 +11,7 @@ import "hardhat/console.sol";
 contract TradeService is Ownable2Step {
     using TransferHelper for address;
 
-    uint8 public constant fee = 100;
+    uint8 public constant fee = 10; //10 means 0.1%
     address public feeTo;
 
     //trades[token0][token1] => MonoTrade address 
@@ -34,11 +35,11 @@ contract TradeService is Ownable2Step {
         require(trades[tokenB][tokenA] == address(0), "TradeService: createPair:: tradeBA already exist");
 
         bytes32 salt = keccak256(abi.encodePacked(tokenA, tokenB));
-        tradeAB = address(new MonoTrade{salt: salt}(tokenA, tokenB, fee, feeTo));
+        tradeAB = address(new MonoTrade{salt: salt}(tokenA, tokenB, fee));
         trades[tokenA][tokenB] = tradeAB;
 
         salt = keccak256(abi.encodePacked(tokenB, tokenA));
-        tradeBA = address(new MonoTrade{salt: salt}(tokenB, tokenA, fee, feeTo));
+        tradeBA = address(new MonoTrade{salt: salt}(tokenB, tokenA, fee));
         trades[tokenB][tokenA] = tradeBA;
 
         refreshApprove(tokenA, tokenB);
@@ -71,7 +72,7 @@ contract TradeService is Ownable2Step {
                             keccak256(
                                 abi.encodePacked(
                                     type(MonoTrade).creationCode, 
-                                    abi.encode(token0, token1, fee, feeTo) //constructor params
+                                    abi.encode(token0, token1, fee) //constructor params
                                 )
                             )
                         )
@@ -99,8 +100,8 @@ contract TradeService is Ownable2Step {
     struct UserOrder {
         uint48 index;
         address trade;
-        address token0;
-        address token1;
+        string token0Symbol;
+        string token1Symbol;
         uint48 orderId;
         uint32 createTime;
         uint112 amountIn;
@@ -165,8 +166,8 @@ contract TradeService is Ownable2Step {
                 userOrder = UserOrder(
                     index,
                     orderCreate.trade,
-                    MonoTrade(orderCreate.trade).token0(),
-                    MonoTrade(orderCreate.trade).token1(),
+                    IERC20Metadata(MonoTrade(orderCreate.trade).token0()).symbol(),
+                    IERC20Metadata(MonoTrade(orderCreate.trade).token1()).symbol(),
                     0,
                     orderCreate.createTime,
                     orderCreate.paid,
@@ -192,8 +193,8 @@ contract TradeService is Ownable2Step {
                 userOrder = UserOrder(
                     index,
                     orderCreate.trade,
-                    MonoTrade(orderCreate.trade).token0(),
-                    MonoTrade(orderCreate.trade).token1(),
+                    IERC20Metadata(MonoTrade(orderCreate.trade).token0()).symbol(),
+                    IERC20Metadata(MonoTrade(orderCreate.trade).token1()).symbol(),
                     orderCreate.orderId,
                     orderCreate.createTime,
                     tradeOrder.amountIn + orderCreate.paid,

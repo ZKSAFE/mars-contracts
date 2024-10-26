@@ -1,9 +1,10 @@
 import * as viem from 'viem'
-import { createPublicClient, createWalletClient, http } from 'viem'
+import { createPublicClient, createWalletClient, http, defineChain } from 'viem'
 import { lineaSepolia, unichainSepolia } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
 import * as erc20Json from '../artifacts/contracts/mock/MockERC20.sol/MockERC20.json'
 import * as serviceJson from '../artifacts/contracts/v2/TradeService.sol/TradeService.json'
+import * as multicall3Json from '../artifacts/contracts/help/Multicall3.sol/Multicall3.json'
 
 //linea_sepolia 2024/9/1
 // var USDT_ADDR = '0xd6b0cd180639d9464f51a0ecb816a22add26f701'
@@ -25,6 +26,60 @@ var MEME_ADDR = '0x4355d86e90d1646d0b79a362b7e5b29092047bce'
 var SERVICE_ADDR = '0x9260bb1a28a1fd9f8dbd4386577003b51bb07fa6'
 var USDT_MEME_ADDR = '0x03DF076cA486b570a9Fb24bb77F7687B6e64b4Da'
 var MEME_USDT_ADDR = '0x9b16489771c8D3DaD4aA8e09A6B540B0A02D24F6'
+
+const monadDevnet = defineChain({
+    id: 41454,
+    name: 'Monad Devnet',
+    nativeCurrency: {
+        decimals: 18,
+        name: 'Monad',
+        symbol: 'MON',
+    },
+    rpcUrls: {
+        default: {
+            http: ['https://monad.devnet101.com/rpc/myU75Ctvm8IZpuvuX5diRNZOOKXVgmQH']
+        },
+    },
+    blockExplorers: {
+        default: { name: 'Explorer', url: 'https://blockscout.devnet101.com/' },
+    },
+    contracts: {
+        multicall3: {
+            address: '0x6009234967b1c7872de00bb3f3e77610b8d6dc9e',
+            // blockCreated: 5882,
+        },
+    },
+})
+
+async function deployMulticall3() {
+    const pk = '0x' + process.env.ETH_PK_0 as string
+    const account = privateKeyToAccount(pk as `0x${string}`)
+    console.log('account:', account.address)
+
+    const publicClient = createPublicClient({
+        chain: monadDevnet,
+        transport: http()
+    })
+    console.log('mon:', viem.formatUnits(
+        await publicClient.getBalance({
+            address: account.address
+        }), 18)
+    )
+
+    const walletClient = createWalletClient({
+        account,
+        chain: monadDevnet,
+        transport: http()
+    })
+
+    let hash = await walletClient.deployContract({
+        abi: multicall3Json.abi,
+        account,
+        bytecode: multicall3Json.bytecode as `0x${string}`
+    })
+    let tx = await publicClient.waitForTransactionReceipt({ hash })
+    console.log('Multicall3 address:', tx.contractAddress)
+}
 
 async function main() {
     const pk = '0x' + process.env.ETH_PK_1 as string
@@ -127,7 +182,7 @@ async function main() {
     hash = await walletClient.writeContract(sim.request)
     await publicClient.waitForTransactionReceipt({ hash })
     console.log('createPair done', hash)
-    
+
 
 
     USDT_MEME_ADDR = await publicClient.readContract({
@@ -138,7 +193,7 @@ async function main() {
         account
     }) as string
     console.log('USDT_MEME_ADDR =', USDT_MEME_ADDR)
-    
+
     MEME_USDT_ADDR = await publicClient.readContract({
         address: SERVICE_ADDR as `0x${string}`,
         abi: serviceJson.abi,
@@ -149,7 +204,7 @@ async function main() {
     console.log('MEME_USDT_ADDR =', MEME_USDT_ADDR)
 }
 
-main()
+deployMulticall3()
     .then(() => process.exit(0))
     .catch(error => {
         console.error(error);

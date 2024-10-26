@@ -9,16 +9,14 @@ import "hardhat/console.sol";
 
 contract Mining {
 
-    Mars public mars = new Mars();
-    TradeService public service = new TradeService();
+    Mars public mars;
+    TradeService public service;
 
     mapping (bytes26 => bool) public isMined;
 
-    constructor() {
-    }
-
-    function feeTo() public view returns (address) {
-        return address(this);
+    constructor(address _mars, address _service) {
+        mars = Mars(_mars);
+        service = TradeService(_service);
     }
 
     function mine(address tradeAddr, uint48 orderId, bytes calldata routersBytes) public returns (uint) {

@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../help/TransferHelper.sol";
 import "hardhat/console.sol";
 
-interface IFeeTo {
+interface IFactory {
     function feeTo() external returns (address);
 }
 
@@ -19,7 +19,7 @@ contract MonoTrade {
     address public immutable token0;
     address public immutable token1;
     uint8 public immutable fee; //100 means 1%
-    address public immutable feeTo;
+    address public immutable factory;
 
     uint48 public count = 0;
 
@@ -44,11 +44,11 @@ contract MonoTrade {
     event MakeOrder(uint48 indexed orderId, uint112 token1In, uint112 token0Out);
     event CancelOrder(uint48 indexed orderId);
 
-    constructor(address _token0, address _token1, uint8 _fee, address _feeTo) {
+    constructor(address _token0, address _token1, uint8 _fee) {
         token0 = _token0;
         token1 = _token1;
         fee = _fee;
-        feeTo = _feeTo;
+        factory = msg.sender;
     }
 
     function getOrder(uint48 orderId) public view returns (Order memory) {
@@ -155,8 +155,8 @@ contract MonoTrade {
         token0Paid = token0In - takerToken0Left;
         // require(token0Paid > 0, "MonoTrade: takeOrder:: no deal");
 
-        //if feeTo is contract
-        address feeToAddr = feeTo.code.length > 0 ? IFeeTo(feeTo).feeTo() : feeTo;
+        //if factory is contract or not
+        address feeToAddr = factory.code.length > 0 ? IFactory(factory).feeTo() : factory;
 
         //if msg.sender is feeTo, fee is 0
         if (msg.sender != feeToAddr) {

@@ -196,7 +196,7 @@ async function getOrderList(walletClient: any, publicClient: any, account: viem.
 }
 
 
-async function getUserOrderList(walletClient: any, publicClient: any, account: viem.PrivateKeyAccount) {
+async function getUserOrders(walletClient: any, publicClient: any, account: viem.PrivateKeyAccount) {
     let lastIndex = 0
     let num = 10
     let userOrderArr = await publicClient.readContract({
@@ -309,6 +309,23 @@ async function takeOrder(walletClient: any, publicClient: any, account: viem.Pri
         abi: serviceJson.abi,
         functionName: 'takeOrder',
         args: [MEME_USDT_ADDR, token0In, token1Want],
+        account,
+    })
+    console.log('sim.result:', sim.result)
+    // hash = await walletClient.writeContract(sim.request)
+    // console.log('placeLimitOrder done')
+}
+
+
+async function cancelOrder(walletClient: any, publicClient: any, account: viem.PrivateKeyAccount) {
+    let orderId = 1 //get orderId from getUserOrders
+    let trade = '0x03DF076cA486b570a9Fb24bb77F7687B6e64b4Da' //get trade from getUserOrders
+
+    let sim = await publicClient.simulateContract({
+        address: trade,
+        abi: tradeJson.abi,
+        functionName: 'cancelOrder',
+        args: [orderId],
         account,
     })
     console.log('sim.result:', sim.result)
