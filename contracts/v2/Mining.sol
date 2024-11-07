@@ -25,7 +25,7 @@ contract Mining {
         MonoTrade.Order memory order = MonoTrade(tradeAddr).getOrder(orderId);
         require(order.progress == type(uint32).max, "Mining: mine:: order is not done");
 
-        uint112 tokenInAmount = order.amountOut * MonoTrade(tradeAddr).fee() / 10000;
+        uint112 tokenInAmount = order.token0Out * MonoTrade(tradeAddr).fee() / 10000;
         address tokenInAddr = address(MonoTrade(tradeAddr).token0());
         require(tokenInAmount > 0, "Mining: mine:: nothing to mine");
 
@@ -48,8 +48,8 @@ contract Mining {
             if (IERC20(routerTokenIn).allowance(address(this), routerTradeAddr) < tokenInAmount) {
                 IERC20(routerTokenIn).approve(routerTradeAddr, type(uint).max);
             }
-            // uint balance = IERC20(routerTokenIn).balanceOf(address(this));
-            // console.log("balance:", balance, "tokenInAmount:", tokenInAmount);
+            uint balance = IERC20(routerTokenIn).balanceOf(address(this));
+            console.log("balance:", balance, "tokenInAmount:", tokenInAmount);
             
             (uint112 token0Paid, uint112 token1Gain, ) = MonoTrade(routerTradeAddr).takeOrder(tokenInAmount, 1);
             require(token0Paid == tokenInAmount, "Mining: mine:: partly done is not allowed");

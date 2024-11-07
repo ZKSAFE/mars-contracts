@@ -31,9 +31,9 @@ contract MonoTrade {
         address owner;
 
         //uses single storage slot
-        uint112 amountIn; //token deposit in
-        uint112 amountOut; //want token out
-        uint32 progress; // progress/type(uint32).max is the progress[0, 1], if amountIn is a large number, precision will be decreased
+        uint112 token1In; //token deposit in
+        uint112 token0Out; //want token out
+        uint32 progress; // progress/type(uint32).max is the progress[0, 1], if token1In is a large number, precision will be decreased
         //(removed for saving gas) bool isDone; //beforeOrderId==type(uint48).max means removed(done)
     }
 
@@ -58,7 +58,7 @@ contract MonoTrade {
     function makeOrder(uint112 token1In, uint112 token0Out, uint48 beforeOrderId) public returns (uint48) {
         require(token1In > 0, "MonoTrade: makeOrder:: token1In amount cannot be 0");
         require(token0Out > 0, "MonoTrade: makeOrder:: token0Out amount cannot be 0");
-        token1.safeTransferFrom(msg.sender, address(this), uint(token1In));
+        token1.safeTransferFrom(msg.sender, address(this), token1In);
 
         ++count;
 
@@ -72,7 +72,7 @@ contract MonoTrade {
         //if newOrder is the new topOrder
         if (beforeOrderId == 0) {
             Order storage topOrder = orders[topOrderId];
-            require(topOrder.amountOut * uint(token1In) > topOrder.amountIn * uint(token0Out), "MonoTrade: makeOrder:: your price must > topOrder");
+            require(topOrder.token0Out * token1In > topOrder.token1In * token0Out, "MonoTrade: makeOrder:: your price must > topOrder");
 
             topOrder.beforeOrderId = count;
             orders[count] = Order(0, topOrderId, msg.sender, token1In, token0Out, 0);
@@ -81,9 +81,9 @@ contract MonoTrade {
         }
 
         Order storage beforeOrder = orders[beforeOrderId];
-        require(beforeOrder.amountIn != 0, "MonoTrade: makeOrder:: beforeOrder is not exist");
+        require(beforeOrder.token1In != 0, "MonoTrade: makeOrder:: beforeOrder is not exist");
         require(beforeOrder.beforeOrderId != type(uint48).max, "MonoTrade: makeOrder:: beforeOrder is removed(done)");
-        require(beforeOrder.amountOut * uint(token1In) <= beforeOrder.amountIn * uint(token0Out), "MonoTrade: makeOrder:: your price must <= beforeOrder");
+        require(beforeOrder.token0Out * token1In <= beforeOrder.token1In * token0Out, "MonoTrade: makeOrder:: your price must <= beforeOrder");
         
         //if newOrder is the new lastOrder
         if (beforeOrder.afterOrderId == 0) {
@@ -94,9 +94,9 @@ contract MonoTrade {
 
         //if beforeOrder and afterOrder both exist
         Order storage afterOrder = orders[beforeOrder.afterOrderId];
-        require(afterOrder.amountIn != 0, "MonoTrade: makeOrder:: afterOrder is not exist");
+        require(afterOrder.token1In != 0, "MonoTrade: makeOrder:: afterOrder is not exist");
         require(afterOrder.beforeOrderId != type(uint48).max, "MonoTrade: makeOrder:: afterOrder is removed");
-        require(afterOrder.amountOut * uint(token1In) > afterOrder.amountIn * uint(token0Out), "MonoTrade: makeOrder:: your price must > afterOrder");
+        require(afterOrder.token0Out * token1In > afterOrder.token1In * token0Out, "MonoTrade: makeOrder:: your price must > afterOrder");
 
         orders[count] = Order(beforeOrderId, beforeOrder.afterOrderId, msg.sender, token1In, token0Out, 0);
         beforeOrder.afterOrderId = count;
@@ -111,39 +111,39 @@ contract MonoTrade {
             return (0, 0, 0); //orders is empty
         }
 
-        token0.safeTransferFrom(msg.sender, address(this), uint(token0In));
+        token0.safeTransferFrom(msg.sender, address(this), token0In);
 
         uint112 takerToken0Left = token0In;
 
         while (topOrderId != 0) {
             Order storage topOrder = orders[topOrderId];
-            if (uint(token0In) * topOrder.amountIn < uint(token1ForPrice) * topOrder.amountOut ) {
+            if (token0In * topOrder.token1In < token1ForPrice * topOrder.token0Out) {
                 break; //price not good
             }
-            uint112 amountInUsed = uint112(uint(topOrder.progress) * topOrder.amountIn / type(uint32).max);
-            uint112 topOrderToken0Left = topOrder.amountOut - uint112(uint(amountInUsed) * topOrder.amountOut / topOrder.amountIn);
+            uint112 token1InUsed = topOrder.progress * topOrder.token1In / type(uint32).max;
+            uint112 topOrderToken0Left = (topOrder.token1In - token1InUsed) * topOrder.token0Out / topOrder.token1In;
 
             if (takerToken0Left >= topOrderToken0Left) { //completely take the order
                 takerToken0Left -= topOrderToken0Left;
-                token1Gain += (topOrder.amountIn - amountInUsed);
+                token1Gain += (topOrder.token1In - token1InUsed);
                 
                 //topOrder is done
                 _removeOrderLink(topOrder);
                 topOrder.progress = type(uint32).max;
-                token0.safeTransfer(topOrder.owner, uint(topOrderToken0Left));
+                token0.safeTransfer(topOrder.owner, topOrderToken0Left);
                 topOrder.beforeOrderId = type(uint48).max;
 
-                // console.log("done, amountOut:", topOrderToken0Left);
+                // console.log("done, token0Out:", topOrderToken0Left);
                 topOrderId = topOrder.afterOrderId; //continue loop
 
             } else {  //partly take the order
-                uint112 deltaToken1Gain = uint112(uint(takerToken0Left) * topOrder.amountIn / topOrder.amountOut);
+                uint112 deltaToken1Gain = takerToken0Left * topOrder.token1In / topOrder.token0Out;
                 token1Gain += deltaToken1Gain;
 
                 //topOrder is partly done
-                amountInUsed += deltaToken1Gain;
-                topOrder.progress = uint32(amountInUsed * type(uint32).max / topOrder.amountIn) + 1;
-                // console.log("partly take buyOrder, amountInUsed:", amountInUsed, topOrder.progress, takerToken0Left);
+                token1InUsed += deltaToken1Gain;
+                topOrder.progress = uint32(token1InUsed * type(uint32).max / topOrder.token1In) + 1;
+                // console.log("partly take buyOrder, token1InUsed:", token1InUsed, topOrder.progress, takerToken0Left);
                 token0.safeTransfer(topOrder.owner, takerToken0Left);
 
                 // console.log("partly done, takerToken0Left:", takerToken0Left);
@@ -160,16 +160,16 @@ contract MonoTrade {
 
         //if msg.sender is feeTo, fee is 0
         if (msg.sender != feeToAddr) {
-            token0Fee = token0Paid * uint112(fee) / 10000;
+            token0Fee = token0Paid * fee / 10000;
             if (token0Fee > 0) {
-                token0.safeTransferFrom(msg.sender, feeToAddr, uint(token0Fee));
+                token0.safeTransferFrom(msg.sender, feeToAddr, token0Fee);
             }
         } 
         if (takerToken0Left > 0) {
-            token0.safeTransfer(msg.sender, uint(takerToken0Left));
+            token0.safeTransfer(msg.sender, takerToken0Left);
         }
         if (token1Gain > 0) {
-            token1.safeTransfer(msg.sender, uint(token1Gain));
+            token1.safeTransfer(msg.sender, token1Gain);
             emit TakeOrder(token0Paid, token1Gain);
         }
     }
@@ -185,10 +185,10 @@ contract MonoTrade {
         }
         order.beforeOrderId = type(uint48).max;
 
-        uint112 amountInUsed = uint112(uint(order.progress) * order.amountIn / type(uint32).max);
-        token1Left = order.amountIn - amountInUsed;
+        uint112 token1InUsed = order.progress * order.token1In / type(uint32).max;
+        token1Left = order.token1In - token1InUsed;
         if (token1Left > 0) {
-            token1.safeTransfer(order.owner, uint(token1Left));
+            token1.safeTransfer(order.owner, token1Left);
             emit CancelOrder(orderId);
         }
     }

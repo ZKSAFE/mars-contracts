@@ -7,6 +7,7 @@ import "hardhat/types/artifacts";
 
 declare module "hardhat/types/artifacts" {
   interface ArtifactsMap {
-    
+    IERC20: never;
+    IFactory: never;
   }
 }

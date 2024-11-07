@@ -114,9 +114,9 @@ describe('Service functions test', function () {
         for (let o of userOeders) {
             if (o.index > 0) {
                 if (o.orderId == 0) {
-                    console.log('index:', o.index, '吃单', '进:', o.amountIn, '出:', o.amountOut, '完全成交')
+                    console.log('index:', o.index, '吃单', '进:', o.token1In, '出:', o.token0Out, '完全成交')
                 } else {
-                    console.log('index:', o.index, '挂单', '进:', o.amountIn, '出:', o.amountOut, '成交进度:', 100 * o.progress / 4294967295 + '%')
+                    console.log('index:', o.index, '挂单', '进:', o.token1In, '出:', o.token0Out, '成交进度:', 100 * o.progress / 4294967295 + '%')
                 }
                 orders.push(o)
             }

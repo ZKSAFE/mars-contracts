@@ -42,20 +42,18 @@ describe('Mining test', function () {
         await usdt.write.mint([accounts[2].account.address, viem.parseUnits('1000', 6)])
         await usdt.write.mint([accounts[3].account.address, viem.parseUnits('1000', 6)])
 
-        mining = await hre.viem.deployContract('Mining', [])
+        mars = await hre.viem.deployContract('Mars', [])
+        console.log('mars deployed:', mars.address)
+
+        service = await hre.viem.deployContract('TradeService', [])
+        console.log('service deployed:', service.address)
+
+        mining = await hre.viem.deployContract('Mining', [mars.address, service.address])
         console.log('Mining deployed:', mining.address)
 
-        service = viem.getContract({
-            address: await mining.read.service(),
-            abi: serviceAbi,
-            client: accounts[0],
-        })
+        await service.write.changeFeeTo([mining.address])
+        console.log('service changeFeeTo done')
 
-        mars = viem.getContract({
-            address: await mining.read.mars(),
-            abi: marsAbi,
-            client: accounts[0],
-        })
         await mars.write.mint([accounts[0].account.address, viem.parseUnits('1000', 18)])
 
         //create mars_usdt_pair

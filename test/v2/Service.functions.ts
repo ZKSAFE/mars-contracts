@@ -96,7 +96,7 @@ describe('Service functions test', function () {
         // console.log(orders)
 
         //auto make sell order
-        expect(orders[0].amountOut).to.equal(viem.parseUnits('110', 6))
+        expect(orders[0].token0Out).to.equal(viem.parseUnits('110', 6))
 
         await print()
     })
@@ -170,8 +170,8 @@ describe('Service functions test', function () {
         // console.log(orders)
 
         //auto make buy order
-        expect(orders[0].amountOut).to.equal(viem.parseUnits('1.6', 18))
-        expect(orders[1].amountOut).to.equal(viem.parseUnits('1', 18))
+        expect(orders[0].token0Out).to.equal(viem.parseUnits('1.6', 18))
+        expect(orders[1].token0Out).to.equal(viem.parseUnits('1', 18))
 
         let userOeders = await service.read.getUserOrders([accounts[1].account.address, 0, 6])
         console.log(userOeders)

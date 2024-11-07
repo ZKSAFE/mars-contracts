@@ -34,24 +34,11 @@ export interface IFactory$Type {
 
 declare module "@nomicfoundation/hardhat-viem/types" {
   export function deployContract(
-    contractName: "IFactory",
-    constructorArgs?: [],
-    config?: DeployContractConfig
-  ): Promise<GetContractReturnType<IFactory$Type["abi"]>>;
-  export function deployContract(
     contractName: "contracts/v2/MonoTrade.sol:IFactory",
     constructorArgs?: [],
     config?: DeployContractConfig
   ): Promise<GetContractReturnType<IFactory$Type["abi"]>>;
 
-  export function sendDeploymentTransaction(
-    contractName: "IFactory",
-    constructorArgs?: [],
-    config?: SendDeploymentTransactionConfig
-  ): Promise<{
-    contract: GetContractReturnType<IFactory$Type["abi"]>;
-    deploymentTransaction: GetTransactionReturnType;
-  }>;
   export function sendDeploymentTransaction(
     contractName: "contracts/v2/MonoTrade.sol:IFactory",
     constructorArgs?: [],
@@ -61,11 +48,6 @@ declare module "@nomicfoundation/hardhat-viem/types" {
     deploymentTransaction: GetTransactionReturnType;
   }>;
 
-  export function getContractAt(
-    contractName: "IFactory",
-    address: Address,
-    config?: GetContractAtConfig
-  ): Promise<GetContractReturnType<IFactory$Type["abi"]>>;
   export function getContractAt(
     contractName: "contracts/v2/MonoTrade.sol:IFactory",
     address: Address,

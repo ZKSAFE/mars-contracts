@@ -11,7 +11,7 @@ import "hardhat/console.sol";
 contract TradeService is Ownable2Step {
     using TransferHelper for address;
 
-    uint8 public constant fee = 10; //10 means 0.1%
+    uint8 public constant fee = 100; //10 means 0.1%
     address public feeTo;
 
     //trades[token0][token1] => MonoTrade address 
@@ -91,8 +91,8 @@ contract TradeService is Ownable2Step {
     //for BuyList and SellList
     struct ListOrder {
         uint48 orderId;
-        uint112 amountIn;
-        uint112 amountOut;
+        uint112 token1In;
+        uint112 token0Out;
         uint32 progress;
     }
 
@@ -104,8 +104,8 @@ contract TradeService is Ownable2Step {
         string token1Symbol;
         uint48 orderId;
         uint32 createTime;
-        uint112 amountIn;
-        uint112 amountOut;
+        uint112 tokenIn;
+        uint112 tokenOut;
         uint32 progress;
         bool isRemoved;
     }
@@ -139,11 +139,11 @@ contract TradeService is Ownable2Step {
         }
 
         MonoTrade.Order memory tradeOrder = trade.getOrder(fromOrderId);
-        result[0] = ListOrder(fromOrderId, tradeOrder.amountIn, tradeOrder.amountOut, tradeOrder.progress);
+        result[0] = ListOrder(fromOrderId, tradeOrder.token1In, tradeOrder.token0Out, tradeOrder.progress);
         for (uint8 i = 1; i < num; i++) {
             uint48 orderId = tradeOrder.afterOrderId;
             tradeOrder = trade.getOrder(orderId);
-            result[i] = ListOrder(orderId, tradeOrder.amountIn, tradeOrder.amountOut, tradeOrder.progress);
+            result[i] = ListOrder(orderId, tradeOrder.token1In, tradeOrder.token0Out, tradeOrder.progress);
         }
         return result;
     }
@@ -182,9 +182,9 @@ contract TradeService is Ownable2Step {
                 uint32 progress;
                 if (tradeOrder.progress < type(uint32).max) {
                     progress = uint32(
-                            (uint(tradeOrder.amountIn) * tradeOrder.progress / type(uint32).max + orderCreate.paid)
+                            (tradeOrder.token1In * tradeOrder.progress / type(uint32).max + orderCreate.paid)
                             * type(uint32).max
-                            / (tradeOrder.amountIn + orderCreate.paid)
+                            / (tradeOrder.token1In + orderCreate.paid)
                         );
                 } else {
                     progress = type(uint32).max;
@@ -197,8 +197,8 @@ contract TradeService is Ownable2Step {
                     IERC20Metadata(MonoTrade(orderCreate.trade).token1()).symbol(),
                     orderCreate.orderId,
                     orderCreate.createTime,
-                    tradeOrder.amountIn + orderCreate.paid,
-                    uint112(uint(tradeOrder.amountOut) * (tradeOrder.amountIn + orderCreate.paid) / tradeOrder.amountIn),
+                    tradeOrder.token1In + orderCreate.paid,
+                    tradeOrder.token0Out * (tradeOrder.token1In + orderCreate.paid) / tradeOrder.token1In,
                     progress,
                     tradeOrder.beforeOrderId == type(uint48).max
                 );
@@ -246,23 +246,23 @@ contract TradeService is Ownable2Step {
             findFromId = id;
         }
 
-        (uint48 beforeOrderId, uint48 afterOrderId, , uint112 amountIn, uint112 amountOut, )
+        (uint48 _beforeOrderId, uint48 _afterOrderId, , uint112 _token1In, uint112 _token0Out, )
             = trade.orders(findFromId);
         
-        if (amountIn != 0 && beforeOrderId != type(uint48).max) {
+        if (_token1In != 0 && _beforeOrderId != type(uint48).max) {
             id = findFromId;
         }
 
         while (true) {
-            if (amountOut * token1In > amountIn * token0Out) {
-                return beforeOrderId;
+            if (_token0Out * token1In > _token1In * token0Out) {
+                return _beforeOrderId;
             }
-            if (afterOrderId == 0) {
+            if (_afterOrderId == 0) {
                 return id;
             } else {
-                id = afterOrderId;
+                id = _afterOrderId;
             }
-            (beforeOrderId, afterOrderId, , amountIn, amountOut, ) = trade.orders(id);
+            (_beforeOrderId, _afterOrderId, , _token1In, _token0Out, ) = trade.orders(id);
         }
 
         return type(uint48).max;
@@ -285,7 +285,7 @@ contract TradeService is Ownable2Step {
     }
 
     //if partly done, the left makes sell order
-    function placeOrder(address tradeAddr, uint112 token0In, uint112 token1Want)
+    function placeOrder(address tradeAddr, uint112 token0In, uint112 token1ForPrice)
         external returns (uint112 token0Paid, uint112 token1Gain, uint112 token0Fee) {
 
         MonoTrade trade = MonoTrade(tradeAddr);
@@ -296,7 +296,7 @@ contract TradeService is Ownable2Step {
         uint112 token0InWithFee = fullFee + token0In;
         token0.safeTransferFrom(msg.sender, address(this), token0InWithFee);
 
-        (token0Paid, token1Gain, token0Fee) = trade.takeOrder(token0In, token1Want);
+        (token0Paid, token1Gain, token0Fee) = trade.takeOrder(token0In, token1ForPrice);
         if (token1Gain > 0) {
             token1.safeTransfer(msg.sender, token1Gain);
         }
@@ -307,7 +307,7 @@ contract TradeService is Ownable2Step {
         //make sell order
         if (token0In > token0Paid) {
             uint112 newToken0In = token0In - token0Paid;
-            uint112 newToken1Want = newToken0In * token1Want / token0In;
+            uint112 newToken1Want = newToken0In * token1ForPrice / token0In;
             tradeAddr = trades[token1][token0];
             trade = MonoTrade(tradeAddr);
             uint48 beforeOrderId = findBeforeOrderId(tradeAddr, newToken0In, newToken1Want, 0);
@@ -322,7 +322,7 @@ contract TradeService is Ownable2Step {
     }
 
     //if partly done, the left give back
-    function takeOrder(address tradeAddr, uint112 token0In, uint112 token1Want)
+    function takeOrder(address tradeAddr, uint112 token0In, uint112 token1ForPrice)
         external returns (uint112 token0Paid, uint112 token1Gain, uint112 token0Fee) {
 
         MonoTrade trade = MonoTrade(tradeAddr);
@@ -333,7 +333,7 @@ contract TradeService is Ownable2Step {
         uint112 token0InWithFee = fullFee + token0In;
         token0.safeTransferFrom(msg.sender, address(this), token0InWithFee);
 
-        (token0Paid, token1Gain, token0Fee) = trade.takeOrder(token0In, token1Want);
+        (token0Paid, token1Gain, token0Fee) = trade.takeOrder(token0In, token1ForPrice);
         token1.safeTransfer(msg.sender, token1Gain);
         
         //give back
