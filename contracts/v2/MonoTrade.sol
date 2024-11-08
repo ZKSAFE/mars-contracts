@@ -55,6 +55,40 @@ contract MonoTrade {
         return orders[orderId];
     }
 
+    function findBeforeOrderId(uint112 token1In, uint112 token0Out, uint48 findFromId)
+        view public returns (uint48) {
+        
+        uint48 id = topOrderId;
+
+        if (id == 0) {
+            return 0;
+        }
+
+        if (findFromId == 0) {
+            findFromId = id;
+        }
+
+        Order memory order = orders[findFromId];
+        
+        if (order.token1In != 0 && order.beforeOrderId != type(uint48).max) {
+            id = findFromId;
+        }
+
+        while (true) {
+            if (order.token0Out * token1In > order.token1In * token0Out) {
+                return order.beforeOrderId;
+            }
+            if (order.afterOrderId == 0) {
+                return id;
+            } else {
+                id = order.afterOrderId;
+            }
+            order = orders[id];
+        }
+
+        return type(uint48).max;
+    }
+
     function makeOrder(uint112 token1In, uint112 token0Out, uint48 beforeOrderId) public returns (uint48) {
         require(token1In > 0, "MonoTrade: makeOrder:: token1In amount cannot be 0");
         require(token0Out > 0, "MonoTrade: makeOrder:: token0Out amount cannot be 0");

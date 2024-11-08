@@ -232,42 +232,6 @@ contract TradeService is Ownable2Step {
     /////// trading ///////
     ////////////////////////
 
-    function findBeforeOrderId(address tradeAddr, uint112 token1In, uint112 token0Out, uint48 findFromId)
-        view public returns (uint48) {
-
-        MonoTrade trade = MonoTrade(tradeAddr);
-        uint48 id = trade.topOrderId();
-
-        if (id == 0) {
-            return 0;
-        }
-
-        if (findFromId == 0) {
-            findFromId = id;
-        }
-
-        (uint48 _beforeOrderId, uint48 _afterOrderId, , uint112 _token1In, uint112 _token0Out, )
-            = trade.orders(findFromId);
-        
-        if (_token1In != 0 && _beforeOrderId != type(uint48).max) {
-            id = findFromId;
-        }
-
-        while (true) {
-            if (_token0Out * token1In > _token1In * token0Out) {
-                return _beforeOrderId;
-            }
-            if (_afterOrderId == 0) {
-                return id;
-            } else {
-                id = _afterOrderId;
-            }
-            (_beforeOrderId, _afterOrderId, , _token1In, _token0Out, ) = trade.orders(id);
-        }
-
-        return type(uint48).max;
-    }
-
     //if beforeOrder not exist, auto find BeforeOrderId
     function makeOrder(address tradeAddr, uint112 token1In, uint112 token0Out, uint48 beforeOrderId)
         external returns (uint48 newOrderId) {
@@ -277,7 +241,7 @@ contract TradeService is Ownable2Step {
         address token1 = trade.token1();
         token1.safeTransferFrom(msg.sender, address(this), token1In);
 
-        uint48 tradeBeforeOrderId = findBeforeOrderId(tradeAddr, token1In, token0Out, beforeOrderId);
+        uint48 tradeBeforeOrderId = trade.findBeforeOrderId(token1In, token0Out, beforeOrderId);
         newOrderId = trade.makeOrder(token1In, token0Out, tradeBeforeOrderId);
         trade.changeOrderOwner(newOrderId, msg.sender);
 
@@ -310,7 +274,7 @@ contract TradeService is Ownable2Step {
             uint112 newToken1Want = newToken0In * token1ForPrice / token0In;
             tradeAddr = trades[token1][token0];
             trade = MonoTrade(tradeAddr);
-            uint48 beforeOrderId = findBeforeOrderId(tradeAddr, newToken0In, newToken1Want, 0);
+            uint48 beforeOrderId = trade.findBeforeOrderId(newToken0In, newToken1Want, 0);
             uint48 newOrderId = trade.makeOrder(newToken0In, newToken1Want, beforeOrderId);
             trade.changeOrderOwner(newOrderId, msg.sender);
 
